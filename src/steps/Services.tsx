@@ -127,7 +127,7 @@ export function ServicesStep() {
             </Text>
             <Text dimColor>Ngrok provides HTTPS tunnels for local development and webhooks.</Text>
             <Box marginLeft={2}>
-              <SelectInput items={YES_NO} onSelect={handleNgrok} />
+              <SelectInput items={NO_YES} onSelect={handleNgrok} />
             </Box>
           </Box>
         )}
