@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { register } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { register } from 'tsx/esm/api'
 
 // Register tsx loader so we can import .tsx files directly
-register('tsx/esm', pathToFileURL('./'))
+register()
 
 // Now import and run the app
 await import('../src/index.tsx')
