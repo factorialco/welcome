@@ -9,7 +9,7 @@ Replaces the legacy `welcome.sh` shell script with a polished TUI built with [In
 ## Usage
 
 ```bash
-npx @factorialco/welcome
+npx @factorialco/welcome#v1
 ```
 
 Or clone and run locally:
