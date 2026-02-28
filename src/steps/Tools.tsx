@@ -10,6 +10,7 @@ const VM_OPTIONS = [
 ]
 
 const EDITOR_OPTIONS = [
+  { label: 'Agentic CLIs  (recommended — opencode, claude, codex)', value: 'cli' as Editor },
   { label: 'Cursor  (AI-native, VS Code fork)', value: 'cursor' as Editor },
   { label: 'VS Code  (classic)', value: 'vscode' as Editor }
 ]

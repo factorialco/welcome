@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react'
+import { execSync } from 'node:child_process'
 
 // ── Brand ──────────────────────────────────────────────
 export const BRAND_COLOR = '#ff365f'
@@ -6,7 +7,15 @@ export const BRAND_HEX = '#ff365f'
 
 // ── Config types matching welcome.sh user prompts ──────
 export type VersionManager = 'mise' | 'asdf'
-export type Editor = 'cursor' | 'vscode'
+export type Editor = 'cli' | 'cursor' | 'vscode'
+
+export function editorLabel(editor: Editor): string {
+  switch (editor) {
+    case 'cli': return 'Agentic CLIs'
+    case 'cursor': return 'Cursor'
+    case 'vscode': return 'VS Code'
+  }
+}
 
 export type SetupConfig = {
   // Git identity (step 3)
@@ -37,14 +46,28 @@ export const DEFAULT_CONFIG: SetupConfig = {
   fullName: '',
   email: '',
   versionManager: 'mise',
-  editor: 'cursor',
+  editor: 'cli',
   installExtensions: true,
-  setupNgrok: true,
+  setupNgrok: false,
   ngrokDomain: '',
   ngrokAuthtoken: '',
   setupCognito: false,
   branchSpecificDb: false,
   restoreDb: true
+}
+
+function getIdentityFromSystem(): { fullName: string; email: string } {
+  try {
+    const username = execSync('whoami', { encoding: 'utf-8' }).trim()
+    const fullName = username
+      .split('.')
+      .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+    const email = `${username}@factorial.co`
+    return { fullName, email }
+  } catch {
+    return { fullName: '', email: '' }
+  }
 }
 
 // ── The 13 setup tasks from welcome.sh ─────────────────
@@ -180,7 +203,10 @@ export function useWizard() {
 }
 
 export function WizardProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SetupConfig>({ ...DEFAULT_CONFIG })
+  const [config, setConfig] = useState<SetupConfig>(() => {
+    const identity = getIdentityFromSystem()
+    return { ...DEFAULT_CONFIG, ...identity }
+  })
   const [currentStep, setCurrentStep] = useState(0)
   const totalSteps = WIZARD_STEPS.length
 

@@ -3,7 +3,7 @@ import { Box, Text, useApp } from 'ink'
 import Spinner from 'ink-spinner'
 import Gradient from 'ink-gradient'
 import BigText from 'ink-big-text'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, type SetupConfig } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, editorLabel, type SetupConfig } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { ProgressBar } from '../components/UI.js'
 import { TASK_RUNNERS, type ProgressCallback, type TaskResult } from '../commands.js'
@@ -99,11 +99,13 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'Writing /etc/hosts (requires sudo)...'
       ]
     case 9:
-      return [
-        `Installing ${config.editor === 'cursor' ? 'Cursor' : 'VS Code'} extensions...`,
-        'Installing 23+ extensions...',
-        'Installing custom .vsix from factorialco/devenv-vscode-extensions...'
-      ]
+      return config.editor === 'cli'
+        ? ['Skipping editor extensions (Agentic CLIs selected)...']
+        : [
+            `Installing ${editorLabel(config.editor)} extensions...`,
+            'Installing 23+ extensions...',
+            'Installing custom .vsix from factorialco/devenv-vscode-extensions...'
+          ]
     case 10:
       return [
         `Configuring Ngrok domain: ${config.ngrokDomain || 'default'}...`,
@@ -131,7 +133,9 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         config.restoreDb
           ? 'Restoring database from backup...'
           : 'Running db:create + db:migrate...',
-        `Opening ${config.editor === 'cursor' ? 'Cursor' : 'VS Code'} + browser...`
+        config.editor === 'cli'
+          ? 'Opening browser...'
+          : `Opening ${editorLabel(config.editor)} + browser...`
       ]
     case 13:
       return [

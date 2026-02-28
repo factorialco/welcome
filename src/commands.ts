@@ -3,11 +3,13 @@ import { readFile, writeFile, appendFile, mkdir, access, copyFile, readdir } fro
 import { constants } from 'node:fs'
 import { homedir, arch as osArch } from 'node:os'
 import path from 'node:path'
+import { createWriteStream } from 'node:fs'
 import type { SetupConfig } from './context.js'
 
 // ── Constants (matching welcome.sh) ─────────────────────
 const HOME = homedir()
 const ROOT_DIR = path.join(HOME, '.factorial')
+const LOG_FILE = '/tmp/welcome.log'
 const CODE_DIR = path.join(HOME, 'code')
 const SSH_DIR = path.join(HOME, '.ssh')
 const ORG_NAME = 'factorialco'
@@ -127,16 +129,17 @@ function runCommand(
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const stdio: ('inherit' | 'pipe')[] = options.interactive
-      ? ['inherit', 'inherit', 'inherit']
+      ? ['inherit', 'inherit', 'pipe']
       : ['pipe', 'pipe', 'pipe']
 
     const child: ChildProcess = spawn(cmd, args, {
       cwd: options.cwd,
       env: { ...process.env, ...options.env },
       stdio,
-      shell: true,
       timeout: options.timeout
     })
+
+    const logStream = createWriteStream(LOG_FILE, { flags: 'a' })
 
     let stdout = ''
     let stderr = ''
@@ -145,13 +148,17 @@ function runCommand(
       child.stdout?.on('data', (data: Buffer) => {
         stdout += data.toString()
       })
-      child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString()
-      })
     }
+
+    child.stderr?.on('data', (data: Buffer) => {
+      const chunk = data.toString()
+      stderr += chunk
+      logStream.write(chunk)
+    })
 
     child.on('error', reject)
     child.on('close', (code) => {
+      logStream.end()
       resolve({ code: code ?? 1, stdout: stdout.trim(), stderr: stderr.trim() })
     })
   })
@@ -162,7 +169,7 @@ async function sh(
   command: string,
   options: { cwd?: string; interactive?: boolean; env?: Record<string, string> } = {}
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  return runCommand('zsh', ['-c', command], options)
+  return runCommand('zsh', ['-lc', command], options)
 }
 
 /** Ensure a line exists in a file (append if missing) */
@@ -231,7 +238,7 @@ export async function runStep1(
     onProgress(1, 'Generating Brewfile...')
     await mkdir(ROOT_DIR, { recursive: true })
     const versionManager = config.versionManager === 'mise' ? 'mise' : 'asdf'
-    const editorCask = config.editor === 'cursor' ? 'cursor' : 'visual-studio-code'
+    const editorCask = config.editor === 'cursor' ? 'cursor' : config.editor === 'vscode' ? 'visual-studio-code' : null
 
     const brewfile =
       [
@@ -264,7 +271,7 @@ export async function runStep1(
         'brew "yq"',
         '',
         'cask_args appdir: "/Applications"',
-        `cask "${editorCask}"`,
+        ...(editorCask ? [`cask "${editorCask}"`] : []),
         'cask "font-fira-code-nerd-font"',
         'cask "iterm2"',
         'cask "session-manager-plugin"',
@@ -276,7 +283,7 @@ export async function runStep1(
 
     // 3. brew bundle install
     onProgress(2, 'Running brew bundle install (this may take a while)...')
-    const brewResult = await sh(`brew bundle --file="${ROOT_DIR}/Brewfile" --force`, {
+    const brewResult = await sh(`brew bundle --file="${ROOT_DIR}/Brewfile" --force --no-upgrade`, {
       interactive: true
     })
     if (brewResult.code !== 0) {
@@ -744,6 +751,11 @@ export async function runStep9(
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
+    if (config.editor === 'cli') {
+      onProgress(0, 'Skipping editor extensions (Agentic CLIs selected)...')
+      return { success: true, duration: Date.now() - start }
+    }
+
     const editorCmd = config.editor === 'cursor' ? 'cursor' : 'code'
     const extensions = [...EXTENSIONS]
 
@@ -1088,7 +1100,7 @@ export async function runStep12(
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    const editorCmd = config.editor === 'cursor' ? 'cursor' : 'code'
+    const editorCmd = config.editor === 'cursor' ? 'cursor' : config.editor === 'vscode' ? 'code' : null
 
     // 0. Install yarn/pnpm and run pnpm i
     onProgress(0, 'Installing yarn and pnpm globally...')
@@ -1185,8 +1197,12 @@ export async function runStep12(
     }
 
     // 7. Open editor + browser
-    onProgress(8, `Opening ${editorCmd === 'cursor' ? 'Cursor' : 'VS Code'} + browser...`)
-    await sh(`${editorCmd} "${REPO_PATH}/factorial.code-workspace" 2>/dev/null || true`)
+    if (editorCmd) {
+      onProgress(8, `Opening ${editorCmd === 'cursor' ? 'Cursor' : 'VS Code'} + browser...`)
+      await sh(`${editorCmd} "${REPO_PATH}/factorial.code-workspace" 2>/dev/null || true`)
+    } else {
+      onProgress(8, 'Opening browser...')
+    }
     await sh(`open "https://app.${LOCAL_DOMAIN}" 2>/dev/null || true`)
     await sh('open "https://manual.factorial.dev" 2>/dev/null || true')
 

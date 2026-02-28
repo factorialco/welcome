@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text, useInput } from 'ink'
-import { useWizard, SETUP_TASKS, BRAND_COLOR } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, editorLabel } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
 
@@ -54,7 +54,7 @@ export function ReviewStep() {
             <Field label="Version Manager" value={config.versionManager} color={BRAND_COLOR} />
             <Field
               label="Editor"
-              value={config.editor === 'cursor' ? 'Cursor' : 'VS Code'}
+              value={editorLabel(config.editor)}
               color={BRAND_COLOR}
             />
             <Field
