@@ -238,7 +238,20 @@ export async function runStep1(
     onProgress(1, 'Generating Brewfile...')
     await mkdir(ROOT_DIR, { recursive: true })
     const versionManager = config.versionManager === 'mise' ? 'mise' : 'asdf'
-    const editorCask = config.editor === 'cursor' ? 'cursor' : config.editor === 'vscode' ? 'visual-studio-code' : null
+    // Map agentic CLIs to brew formula names
+    const cliBrewMap: Record<string, string> = {
+      opencode: 'opencode',
+      claude: 'claude-code',
+      codex: 'codex'
+    }
+    const cliBrewLines = config.agenticClis.map((cli) => `brew "${cliBrewMap[cli]}"`)
+
+    // Map editors to Homebrew cask names
+    const editorCaskMap: Record<string, string> = {
+      cursor: 'cursor',
+      vscode: 'visual-studio-code'
+    }
+    const editorCaskLines = config.editors.map((e) => `cask "${editorCaskMap[e]}"`)
 
     const brewfile =
       [
@@ -269,9 +282,10 @@ export async function runStep1(
         'brew "gpg"',
         'brew "composer"',
         'brew "yq"',
+        ...cliBrewLines,
         '',
         'cask_args appdir: "/Applications"',
-        ...(editorCask ? [`cask "${editorCask}"`] : []),
+        ...editorCaskLines,
         'cask "font-fira-code-nerd-font"',
         'cask "iterm2"',
         'cask "session-manager-plugin"',
@@ -751,46 +765,49 @@ export async function runStep9(
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    if (config.editor === 'cli') {
-      onProgress(0, 'Skipping editor extensions (Agentic CLIs selected)...')
+    if (config.editors.length === 0) {
+      onProgress(0, 'Skipping editor extensions (no editors selected)...')
       return { success: true, duration: Date.now() - start }
     }
 
-    const editorCmd = config.editor === 'cursor' ? 'cursor' : 'code'
-    const extensions = [...EXTENSIONS]
+    for (const editor of config.editors) {
+      const editorCmd = editor === 'cursor' ? 'cursor' : 'code'
+      const editorName = editor === 'cursor' ? 'Cursor' : 'VS Code'
+      const extensions = [...EXTENSIONS]
 
-    // Add Copilot for VS Code users
-    if (config.editor === 'vscode') {
-      extensions.push('github.copilot', 'github.copilot-chat')
-    }
+      // Add Copilot for VS Code users
+      if (editor === 'vscode') {
+        extensions.push('github.copilot', 'github.copilot-chat')
+      }
 
-    // 1. Install extensions
-    onProgress(0, `Installing ${editorCmd === 'cursor' ? 'Cursor' : 'VS Code'} extensions...`)
-    for (let i = 0; i < extensions.length; i++) {
-      const ext = extensions[i]!
-      onProgress(1, `Installing ${ext} (${i + 1}/${extensions.length})...`)
-      await sh(`${editorCmd} --install-extension "${ext}" --force 2>/dev/null || true`)
-    }
+      // 1. Install extensions
+      onProgress(0, `Installing ${editorName} extensions...`)
+      for (let i = 0; i < extensions.length; i++) {
+        const ext = extensions[i]!
+        onProgress(1, `[${editorName}] Installing ${ext} (${i + 1}/${extensions.length})...`)
+        await sh(`${editorCmd} --install-extension "${ext}" --force 2>/dev/null || true`)
+      }
 
-    // 2. Custom .vsix extensions
-    onProgress(2, 'Installing custom .vsix extensions...')
-    const extRepoPath = path.join(CODE_DIR, 'devenv-vscode-extensions')
-    if (!(await dirExists(extRepoPath))) {
-      await sh(
-        `git clone git@github.com:factorialco/devenv-vscode-extensions.git "${extRepoPath}"`,
-        { interactive: true }
-      )
-    } else {
-      await sh('git pull', { cwd: extRepoPath })
-    }
+      // 2. Custom .vsix extensions
+      onProgress(2, `[${editorName}] Installing custom .vsix extensions...`)
+      const extRepoPath = path.join(CODE_DIR, 'devenv-vscode-extensions')
+      if (!(await dirExists(extRepoPath))) {
+        await sh(
+          `git clone git@github.com:factorialco/devenv-vscode-extensions.git "${extRepoPath}"`,
+          { interactive: true }
+        )
+      } else {
+        await sh('git pull', { cwd: extRepoPath })
+      }
 
-    const distDir = path.join(extRepoPath, 'dist')
-    if (await dirExists(distDir)) {
-      const files = await readdir(distDir)
-      for (const file of files) {
-        if (file.endsWith('.vsix')) {
-          const vsixPath = path.join(distDir, file)
-          await sh(`${editorCmd} --install-extension "${vsixPath}" --force 2>/dev/null || true`)
+      const distDir = path.join(extRepoPath, 'dist')
+      if (await dirExists(distDir)) {
+        const files = await readdir(distDir)
+        for (const file of files) {
+          if (file.endsWith('.vsix')) {
+            const vsixPath = path.join(distDir, file)
+            await sh(`${editorCmd} --install-extension "${vsixPath}" --force 2>/dev/null || true`)
+          }
         }
       }
     }
@@ -1100,8 +1117,6 @@ export async function runStep12(
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    const editorCmd = config.editor === 'cursor' ? 'cursor' : config.editor === 'vscode' ? 'code' : null
-
     // 0. Install yarn/pnpm and run pnpm i
     onProgress(0, 'Installing yarn and pnpm globally...')
     await sh('npm install --global yarn pnpm', { interactive: true })
@@ -1196,15 +1211,7 @@ export async function runStep12(
       })
     }
 
-    // 7. Open editor + browser
-    if (editorCmd) {
-      onProgress(8, `Opening ${editorCmd === 'cursor' ? 'Cursor' : 'VS Code'} + browser...`)
-      await sh(`${editorCmd} "${REPO_PATH}/factorial.code-workspace" 2>/dev/null || true`)
-    } else {
-      onProgress(8, 'Opening browser...')
-    }
-    await sh(`open "https://app.${LOCAL_DOMAIN}" 2>/dev/null || true`)
-    await sh('open "https://manual.factorial.dev" 2>/dev/null || true')
+    // 7. Done — no editor or browser opened; the finished pane shows next steps
 
     return { success: true, duration: Date.now() - start }
   } catch (e: any) {

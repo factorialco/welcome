@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text, useInput } from 'ink'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, editorLabel } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, agenticCliLabel, editorChoiceLabel } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
 
@@ -53,13 +53,23 @@ export function ReviewStep() {
             </Text>
             <Field label="Version Manager" value={config.versionManager} color={BRAND_COLOR} />
             <Field
-              label="Editor"
-              value={editorLabel(config.editor)}
+              label="Agentic CLIs"
+              value={
+                config.agenticClis.length > 0
+                  ? config.agenticClis.map(agenticCliLabel).join(', ')
+                  : 'None'
+              }
+              dimValue={config.agenticClis.length === 0}
               color={BRAND_COLOR}
             />
             <Field
-              label="Extensions"
-              value={config.installExtensions ? 'Yes (23+)' : 'No'}
+              label="Editors"
+              value={
+                config.editors.length > 0
+                  ? config.editors.map(editorChoiceLabel).join(', ')
+                  : 'None'
+              }
+              dimValue={config.editors.length === 0}
               color={BRAND_COLOR}
             />
           </Box>

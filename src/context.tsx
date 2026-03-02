@@ -7,11 +7,19 @@ export const BRAND_HEX = '#ff365f'
 
 // ── Config types matching welcome.sh user prompts ──────
 export type VersionManager = 'mise' | 'asdf'
-export type Editor = 'cli' | 'cursor' | 'vscode'
+export type AgenticCli = 'opencode' | 'claude' | 'codex'
+export type EditorChoice = 'cursor' | 'vscode'
 
-export function editorLabel(editor: Editor): string {
+export function agenticCliLabel(cli: AgenticCli): string {
+  switch (cli) {
+    case 'opencode': return 'OpenCode'
+    case 'claude': return 'Claude Code'
+    case 'codex': return 'Codex'
+  }
+}
+
+export function editorChoiceLabel(editor: EditorChoice): string {
   switch (editor) {
-    case 'cli': return 'Agentic CLIs'
     case 'cursor': return 'Cursor'
     case 'vscode': return 'VS Code'
   }
@@ -25,9 +33,11 @@ export type SetupConfig = {
   // Tools (step 5)
   versionManager: VersionManager
 
-  // Editor (step 9)
-  editor: Editor
-  installExtensions: boolean
+  // Agentic CLIs
+  agenticClis: AgenticCli[]
+
+  // Editors (step 9)
+  editors: EditorChoice[]
 
   // Ngrok (step 10)
   setupNgrok: boolean
@@ -46,8 +56,8 @@ export const DEFAULT_CONFIG: SetupConfig = {
   fullName: '',
   email: '',
   versionManager: 'mise',
-  editor: 'cli',
-  installExtensions: true,
+  agenticClis: ['opencode'],
+  editors: [],
   setupNgrok: false,
   ngrokDomain: '',
   ngrokAuthtoken: '',
@@ -140,7 +150,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 9,
     icon: '🛠️',
     name: 'Install editor extensions',
-    description: '23+ VS Code/Cursor extensions',
+    description: 'VS Code/Cursor extensions',
     dependsOn: [1]
   },
   {

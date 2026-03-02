@@ -3,7 +3,7 @@ import { Box, Text, useApp } from 'ink'
 import Spinner from 'ink-spinner'
 import Gradient from 'ink-gradient'
 import BigText from 'ink-big-text'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, editorLabel, type SetupConfig } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, editorChoiceLabel, type SetupConfig } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { ProgressBar } from '../components/UI.js'
 import { TASK_RUNNERS, type ProgressCallback, type TaskResult } from '../commands.js'
@@ -99,11 +99,10 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'Writing /etc/hosts (requires sudo)...'
       ]
     case 9:
-      return config.editor === 'cli'
-        ? ['Skipping editor extensions (Agentic CLIs selected)...']
+      return config.editors.length === 0
+        ? ['Skipping editor extensions (no editors selected)...']
         : [
-            `Installing ${editorLabel(config.editor)} extensions...`,
-            'Installing 23+ extensions...',
+            ...config.editors.map((e) => `Installing ${editorChoiceLabel(e)} extensions...`),
             'Installing custom .vsix from factorialco/devenv-vscode-extensions...'
           ]
     case 10:
@@ -132,10 +131,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'Waiting for MySQL readiness...',
         config.restoreDb
           ? 'Restoring database from backup...'
-          : 'Running db:create + db:migrate...',
-        config.editor === 'cli'
-          ? 'Opening browser...'
-          : `Opening ${editorLabel(config.editor)} + browser...`
+          : 'Running db:create + db:migrate...'
       ]
     case 13:
       return [
@@ -321,10 +317,15 @@ export function InstallStep() {
               {'  '}1. <Text bold>cd ~/code/factorial</Text>
             </Text>
             <Text>
-              {'  '}2. <Text bold>bin/dev</Text>
+              {'  '}2. <Text bold>opencode</Text>
+              <Text dimColor>  (start coding with AI assistance)</Text>
             </Text>
             <Text>
-              {'  '}3. <Text bold>Open https://app.local.factorial.dev:3000</Text>
+              {'  '}3. <Text bold>bin/dev</Text>
+              <Text dimColor>  (start the dev server)</Text>
+            </Text>
+            <Text>
+              {'  '}4. Open <Text bold>https://app.local.factorial.dev:3000</Text>
             </Text>
           </Box>
         </Box>
