@@ -189,7 +189,7 @@ const APT_PACKAGE_MAP: Record<string, string | string[] | null> = {
   libvips: 'libvips-dev',
   libyaml: 'libyaml-dev',
   make: 'make',
-  mysql: ['default-mysql-client', 'libmysqlclient-dev'],
+  mysql: ['default-mysql-client', 'default-libmysqlclient-dev'],
   nss: 'libnss3-tools',
   openssl: 'libssl-dev',
   'pkg-config': 'pkg-config',
