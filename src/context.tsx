@@ -47,6 +47,9 @@ export type SetupConfig = {
   // Cognito (step 11)
   setupCognito: boolean
 
+  // SSH key (set by SSHSetup wizard step)
+  sshKeyPath: string
+
   // Dev environment (step 12)
   branchSpecificDb: boolean
   restoreDb: boolean
@@ -58,6 +61,7 @@ export const DEFAULT_CONFIG: SetupConfig = {
   versionManager: 'mise',
   agenticClis: ['opencode'],
   editors: [],
+  sshKeyPath: '',
   setupNgrok: false,
   ngrokDomain: '',
   ngrokAuthtoken: '',
@@ -190,6 +194,7 @@ export const WIZARD_STEPS = [
   'Tools',
   'Services',
   'Review',
+  'SSHSetup',
   'Install'
 ] as const
 

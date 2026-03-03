@@ -163,7 +163,7 @@ export function ReviewStep() {
           <Text color={BRAND_COLOR} bold>
             Enter
           </Text>{' '}
-          to start installation
+          to continue
         </Text>
         <Text dimColor>|</Text>
         <Text dimColor>

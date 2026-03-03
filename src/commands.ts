@@ -513,128 +513,30 @@ export async function runStep2(
 }
 
 /** Step 3: Configure git identity + SSH keys */
+/** Step 3: Configure git identity (SSH is handled by the SSHSetup wizard step) */
 export async function runStep3(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    // 1. Look for existing SSH keys
-    onProgress(0, 'Searching existing SSH keys...')
-    await mkdir(SSH_DIR, { recursive: true })
-    const findResult = await sh(
-      `find ${SSH_DIR} -type f -not -name "*.pub" -exec grep -l "PRIVATE KEY" {} \\; 2>/dev/null || true`
-    )
-    const existingKeys = findResult.stdout.split('\n').filter(Boolean)
-
-    // 2. Test GitHub access with existing keys
-    onProgress(1, 'Testing GitHub access...')
-    let workingKey: string | null = null
-    for (const key of existingKeys) {
-      const test = await sh(
-        `ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com 2>&1 || true`,
-        { timeout: 15000 }
-      )
-      if (test.stdout.includes('successfully authenticated')) {
-        const repoAccess = await sh(
-          `GIT_SSH_COMMAND="ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
-          { timeout: 15000 }
-        )
-        if (repoAccess.code === 0) {
-          workingKey = key
-          break
-        }
-      }
-    }
-
-    if (!workingKey) {
-      // 3. Generate new SSH key
-      onProgress(2, `Generating Ed25519 key for ${config.email}...`)
-      const keyName = `id_ed25519_factorial_${Math.floor(Date.now() / 1000)}`
-      const keyFile = path.join(SSH_DIR, keyName)
-
-      // Set git identity
+    // Set git identity
+    onProgress(0, 'Configuring git identity...')
+    if (config.fullName) {
       await sh(`git config --global user.name "${config.fullName}"`)
+    }
+    if (config.email) {
       await sh(`git config --global user.email "${config.email}"`)
-
-      await sh(`ssh-keygen -t ed25519 -C "${config.email}" -f "${keyFile}" -N ""`)
-
-      // 4. Configure SSH config
-      onProgress(3, 'Configuring ~/.ssh/config...')
-      const sshConfigFile = path.join(SSH_DIR, 'config')
-      let sshConfig = ''
-      if (await fileExists(sshConfigFile)) {
-        sshConfig = await readFile(sshConfigFile, 'utf-8')
-      }
-
-      if (!sshConfig.includes('Host github.com')) {
-        const block = `\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ${keyFile}\n    IdentitiesOnly yes\n`
-        await appendFile(sshConfigFile, block)
-      }
-
-      // 5. Add to keychain/agent
-      onProgress(4, 'Adding SSH key to agent...')
-      await sh(getSshAddCommand(keyFile))
-
-      // 6. Copy public key to clipboard and open GitHub
-      const pubKey = await readFile(`${keyFile}.pub`, 'utf-8')
-      await sh(getClipboardCommand(pubKey.trim()))
-      await sh(getOpenCommand('https://github.com/settings/keys'))
-
-      workingKey = keyFile
-    } else {
-      // Configure SSH agent with existing key
-      onProgress(3, 'Configuring ~/.ssh/config...')
-      const sshConfigFile = path.join(SSH_DIR, 'config')
-      let sshConfig = ''
-      if (await fileExists(sshConfigFile)) {
-        sshConfig = await readFile(sshConfigFile, 'utf-8')
-      }
-      if (!sshConfig.includes('Host github.com')) {
-        const block = `\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ${workingKey}\n    IdentitiesOnly yes\n`
-        await appendFile(sshConfigFile, block)
-      }
-
-      onProgress(4, 'Adding SSH key to agent...')
-      await sh(getSshAddCommand(workingKey))
-
-      // Set git identity if not already set
-      const existingName = (await sh('git config --global user.name || true')).stdout
-      const existingEmail = (await sh('git config --global user.email || true')).stdout
-      if (!existingName && config.fullName) {
-        await sh(`git config --global user.name "${config.fullName}"`)
-      }
-      if (!existingEmail && config.email) {
-        await sh(`git config --global user.email "${config.email}"`)
-      }
     }
 
-    // Final verify — poll for SSO authorization so the user has time to
-    // add the key to GitHub and authorize the organization.
-    onProgress(5, 'Verifying SSO authorization... (add your SSH key at github.com/settings/keys)')
-    const sshCmd = `ssh -i '${workingKey}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5`
-    const maxSshRetries = 60       // up to ~10 minutes
-    const sshRetryInterval = 10    // seconds
-    let sshAuthorized = false
-    for (let i = 0; i < maxSshRetries; i++) {
-      const verify = await sh(
-        `GIT_SSH_COMMAND="${sshCmd}" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
-        { timeout: 15000 }
-      )
-      if (verify.code === 0) {
-        sshAuthorized = true
-        break
+    // SSH key was already set up in the SSHSetup wizard step.
+    // Just verify it's still working.
+    if (config.sshKeyPath) {
+      onProgress(1, 'Verifying SSH access...')
+      const ok = await verifySSHAccess(config.sshKeyPath)
+      if (!ok) {
+        throw new Error('SSH key no longer has access. Please re-run the wizard.')
       }
-      onProgress(
-        5,
-        `Waiting for SSH key authorization... (${i + 1}/${maxSshRetries}) — add key at github.com/settings/keys and authorize ${ORG_NAME} SSO`
-      )
-      await new Promise((r) => setTimeout(r, sshRetryInterval * 1000))
-    }
-    if (!sshAuthorized) {
-      throw new Error(
-        'SSH key is not authorized to access the Factorial organization. Please add your SSH key to GitHub and authorize SSO.'
-      )
     }
 
     return { success: true, duration: Date.now() - start }
@@ -1400,4 +1302,99 @@ export const TASK_RUNNERS: Record<number, TaskRunner> = {
   11: runStep11,
   12: runStep12,
   13: runStep13
+}
+
+// ── SSH Setup Helpers (used by SSHSetup wizard step) ────
+
+/** Search for existing SSH private keys */
+export async function findExistingSSHKeys(): Promise<string[]> {
+  await mkdir(SSH_DIR, { recursive: true })
+  const findResult = await sh(
+    `find ${SSH_DIR} -type f -not -name "*.pub" -exec grep -l "PRIVATE KEY" {} \\; 2>/dev/null || true`
+  )
+  return findResult.stdout.split('\n').filter(Boolean)
+}
+
+/** Test if an SSH key can access the Factorial org repo */
+export async function testSSHKeyAccess(keyPath: string): Promise<boolean> {
+  const sshOpts = `-i '${keyPath}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5`
+  const test = await sh(
+    `ssh ${sshOpts} -T git@github.com 2>&1 || true`,
+    { timeout: 15000 }
+  )
+  if (!test.stdout.includes('successfully authenticated')) return false
+
+  const repoAccess = await sh(
+    `GIT_SSH_COMMAND="ssh ${sshOpts}" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+    { timeout: 15000 }
+  )
+  return repoAccess.code === 0
+}
+
+/** Find a working SSH key from existing keys */
+export async function findWorkingSSHKey(): Promise<string | null> {
+  const keys = await findExistingSSHKeys()
+  for (const key of keys) {
+    if (await testSSHKeyAccess(key)) return key
+  }
+  return null
+}
+
+/** Generate a new SSH key and configure ~/.ssh/config */
+export async function generateSSHKey(email: string): Promise<{ keyPath: string; publicKey: string }> {
+  const keyName = `id_ed25519_factorial_${Math.floor(Date.now() / 1000)}`
+  const keyFile = path.join(SSH_DIR, keyName)
+
+  await sh(`ssh-keygen -t ed25519 -C "${email}" -f "${keyFile}" -N ""`)
+
+  // Configure SSH config
+  const sshConfigFile = path.join(SSH_DIR, 'config')
+  let sshConfig = ''
+  if (await fileExists(sshConfigFile)) {
+    sshConfig = await readFile(sshConfigFile, 'utf-8')
+  }
+  if (!sshConfig.includes('Host github.com')) {
+    const block = `\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ${keyFile}\n    IdentitiesOnly yes\n`
+    await appendFile(sshConfigFile, block)
+  }
+
+  // Add to SSH agent
+  await sh(getSshAddCommand(keyFile))
+
+  const publicKey = await readFile(`${keyFile}.pub`, 'utf-8')
+  return { keyPath: keyFile, publicKey: publicKey.trim() }
+}
+
+/** Copy text to clipboard */
+export async function copyToClipboard(text: string): Promise<void> {
+  await sh(getClipboardCommand(text))
+}
+
+/** Open a URL in the default browser */
+export async function openURL(url: string): Promise<void> {
+  await sh(getOpenCommand(url))
+}
+
+/** Verify SSO authorization for a given SSH key */
+export async function verifySSHAccess(keyPath: string): Promise<boolean> {
+  const sshOpts = `-i '${keyPath}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5`
+  const result = await sh(
+    `GIT_SSH_COMMAND="ssh ${sshOpts}" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+    { timeout: 15000 }
+  )
+  return result.code === 0
+}
+
+/** Configure SSH config for an existing key */
+export async function configureSSHKey(keyPath: string): Promise<void> {
+  const sshConfigFile = path.join(SSH_DIR, 'config')
+  let sshConfig = ''
+  if (await fileExists(sshConfigFile)) {
+    sshConfig = await readFile(sshConfigFile, 'utf-8')
+  }
+  if (!sshConfig.includes('Host github.com')) {
+    const block = `\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ${keyPath}\n    IdentitiesOnly yes\n`
+    await appendFile(sshConfigFile, block)
+  }
+  await sh(getSshAddCommand(keyPath))
 }

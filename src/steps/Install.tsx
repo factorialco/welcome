@@ -59,12 +59,8 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 3:
       return [
-        'Searching existing SSH keys...',
-        'Testing GitHub access to factorialco/factorial...',
-        `Generating Ed25519 key for ${config.email || 'user'}...`,
-        'Configuring ~/.ssh/config...',
-        'Adding key to SSH agent...',
-        'Verifying SSO authorization...'
+        'Configuring git identity...',
+        'Verifying SSH access...'
       ]
     case 4:
       return [
