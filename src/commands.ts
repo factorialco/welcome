@@ -107,10 +107,6 @@ const EXTENSIONS = [
 
 const SKILL_REPOS = [
   'factorialco/factorial-skills',
-  'anthropics/skills',
-  'obra/superpowers',
-  'remotion-dev/skills',
-  'mattpocock/skills'
 ]
 
 // ── Types ───────────────────────────────────────────────
@@ -194,7 +190,7 @@ function runCommand(
 /** Run a shell command string via the user's default shell */
 async function sh(
   command: string,
-  options: { cwd?: string; interactive?: boolean; env?: Record<string, string> } = {}
+  options: { cwd?: string; interactive?: boolean; env?: Record<string, string>; timeout?: number } = {}
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   const [shell, baseArgs] = getShellArgs()
   return runCommand(shell, [...baseArgs, command], options)
@@ -536,11 +532,13 @@ export async function runStep3(
     let workingKey: string | null = null
     for (const key of existingKeys) {
       const test = await sh(
-        `ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -T git@github.com 2>&1 || true`
+        `ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com 2>&1 || true`,
+        { timeout: 15000 }
       )
       if (test.stdout.includes('successfully authenticated')) {
         const repoAccess = await sh(
-          `GIT_SSH_COMMAND="ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`
+          `GIT_SSH_COMMAND="ssh -i '${key}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+          { timeout: 15000 }
         )
         if (repoAccess.code === 0) {
           workingKey = key
@@ -614,12 +612,14 @@ export async function runStep3(
     // Final verify — poll for SSO authorization so the user has time to
     // add the key to GitHub and authorize the organization.
     onProgress(5, 'Verifying SSO authorization... (add your SSH key at github.com/settings/keys)')
+    const sshCmd = `ssh -i '${workingKey}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5`
     const maxSshRetries = 60       // up to ~10 minutes
     const sshRetryInterval = 10    // seconds
     let sshAuthorized = false
     for (let i = 0; i < maxSshRetries; i++) {
       const verify = await sh(
-        `GIT_SSH_COMMAND="ssh -i '${workingKey}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`
+        `GIT_SSH_COMMAND="${sshCmd}" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+        { timeout: 15000 }
       )
       if (verify.code === 0) {
         sshAuthorized = true

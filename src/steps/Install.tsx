@@ -135,10 +135,6 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
     case 13:
       return [
         'npx skills add factorialco/factorial-skills...',
-        'npx skills add anthropics/skills...',
-        'npx skills add obra/superpowers...',
-        'npx skills add remotion-dev/skills...',
-        'npx skills add mattpocock/skills...'
       ]
     default:
       return []
