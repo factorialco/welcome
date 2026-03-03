@@ -339,8 +339,10 @@ export async function runStep1(
       }
     } else {
       // ── Linux: native package manager path ──
+      // Add build prerequisites that macOS gets from Xcode Command Line Tools
+      const linuxFormulae = [...allFormulae, 'pkg-config', 'build-essential']
       onProgress(0, 'Building package install plan...')
-      const plan = await buildPackageInstallPlan(allFormulae)
+      const plan = await buildPackageInstallPlan(linuxFormulae)
 
       // Install native packages
       if (plan.nativePackages.length > 0) {

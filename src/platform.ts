@@ -189,9 +189,11 @@ const APT_PACKAGE_MAP: Record<string, string | string[] | null> = {
   libvips: 'libvips-dev',
   libyaml: 'libyaml-dev',
   make: 'make',
-  mysql: ['mysql-client', 'libmysqlclient-dev'],
+  mysql: ['default-mysql-client', 'libmysqlclient-dev'],
   nss: 'libnss3-tools',
   openssl: 'libssl-dev',
+  'pkg-config': 'pkg-config',
+  'build-essential': 'build-essential',
   'pdftk-java': 'pdftk-java',
   ripgrep: 'ripgrep',
   semgrep: null, // Installed via pip
@@ -225,9 +227,11 @@ const PACMAN_PACKAGE_MAP: Record<string, string | string[] | null> = {
   libvips: 'libvips',
   libyaml: 'libyaml',
   make: 'make',
-  mysql: 'mariadb-clients',
+  mysql: ['mariadb-clients', 'mariadb-libs'],
   nss: 'nss',
   openssl: 'openssl',
+  'pkg-config': 'pkgconf',
+  'build-essential': 'base-devel',
   'pdftk-java': null, // AUR: pdftk
   ripgrep: 'ripgrep',
   semgrep: null, // pip install semgrep
