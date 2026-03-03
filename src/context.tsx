@@ -50,6 +50,9 @@ export type SetupConfig = {
   // SSH key (set by SSHSetup wizard step)
   sshKeyPath: string
 
+  // AWS (set by AWSSetup wizard step)
+  awsAuthenticated: boolean
+
   // Dev environment (step 12)
   branchSpecificDb: boolean
   restoreDb: boolean
@@ -62,6 +65,7 @@ export const DEFAULT_CONFIG: SetupConfig = {
   agenticClis: ['opencode'],
   editors: [],
   sshKeyPath: '',
+  awsAuthenticated: false,
   setupNgrok: false,
   ngrokDomain: '',
   ngrokAuthtoken: '',
@@ -195,6 +199,7 @@ export const WIZARD_STEPS = [
   'Services',
   'Review',
   'SSHSetup',
+  'AWSSetup',
   'Install'
 ] as const
 

@@ -9,6 +9,7 @@ import { ToolsStep } from './steps/Tools.js'
 import { ServicesStep } from './steps/Services.js'
 import { ReviewStep } from './steps/Review.js'
 import { SSHSetupStep } from './steps/SSHSetup.js'
+import { AWSSetupStep } from './steps/AWSSetup.js'
 import { InstallStep } from './steps/Install.js'
 
 function WizardContent() {
@@ -21,6 +22,7 @@ function WizardContent() {
     <ServicesStep key="services" />,
     <ReviewStep key="review" />,
     <SSHSetupStep key="ssh-setup" />,
+    <AWSSetupStep key="aws-setup" />,
     <InstallStep key="install" />
   ]
 

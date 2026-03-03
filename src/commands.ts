@@ -555,7 +555,7 @@ export async function runStep4(
     await mkdir(CODE_DIR, { recursive: true })
 
     // 1. Clone or pull
-    onProgress(0, 'Cloning factorialco/factorial...')
+    onProgress(0, 'Cloning factorialco/factorial... (this may take a while, patience!)')
     if (!(await dirExists(REPO_PATH))) {
       const result = await sh(
         `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
@@ -674,14 +674,14 @@ export async function runStep5(
   }
 }
 
-/** Step 6: Configure AWS credentials */
+/** Step 6: Configure AWS credentials (SSO login is handled by the AWSSetup wizard step) */
 export async function runStep6(
   _config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    // 1. Copy AWS config
+    // 1. Copy AWS config from repo (now that it's cloned)
     onProgress(0, 'Copying AWS config...')
     const awsDir = path.join(HOME, '.aws')
     await mkdir(awsDir, { recursive: true })
@@ -694,25 +694,24 @@ export async function runStep6(
       }
     }
 
-    // 2. AWS SSO login
-    onProgress(1, 'Running aws sso login...')
-    const stsCheck = await sh(
-      `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity 2>/dev/null`
-    )
-    if (stsCheck.code !== 0) {
-      await sh(
-        `aws sso --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" login`,
-        { interactive: true }
-      )
-    }
-
-    // 3. Verify
-    onProgress(2, 'Verifying access (eu-central-1)...')
+    // 2. Verify session is still active (login was done in AWSSetup wizard step)
+    onProgress(1, 'Verifying AWS session...')
     const verify = await sh(
       `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity`
     )
     if (verify.code !== 0) {
-      throw new Error('AWS SSO login failed. Please try again.')
+      // Session may have expired — try re-login
+      onProgress(1, 'Session expired, re-authenticating...')
+      await sh(
+        `aws sso --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" login`,
+        { interactive: true }
+      )
+      const recheck = await sh(
+        `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity`
+      )
+      if (recheck.code !== 0) {
+        throw new Error('AWS SSO login failed. Please try again.')
+      }
     }
 
     return { success: true, duration: Date.now() - start }
@@ -1397,4 +1396,58 @@ export async function configureSSHKey(keyPath: string): Promise<void> {
     await appendFile(sshConfigFile, block)
   }
   await sh(getSshAddCommand(keyPath))
+}
+
+// ── AWS Setup Helpers (used by AWSSetup wizard step) ────
+
+/** Check if AWS CLI is installed */
+export async function checkAWSCLI(): Promise<boolean> {
+  const result = await sh('aws --version 2>/dev/null')
+  return result.code === 0
+}
+
+/** Check if ~/.aws/config exists */
+export async function hasAWSConfig(): Promise<boolean> {
+  const awsConfigPath = path.join(HOME, '.aws', 'config')
+  return fileExists(awsConfigPath)
+}
+
+/** Check if an active AWS SSO session exists */
+export async function checkAWSSession(): Promise<boolean> {
+  const result = await sh(
+    `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity 2>/dev/null`
+  )
+  return result.code === 0
+}
+
+/** Run AWS SSO login (interactive — opens browser) */
+export async function runAWSSSOLogin(): Promise<{ success: boolean; error?: string }> {
+  const result = await sh(
+    `aws sso --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" login`,
+    { interactive: true }
+  )
+  if (result.code !== 0) {
+    return { success: false, error: 'AWS SSO login failed.' }
+  }
+  // Verify it worked
+  const verify = await sh(
+    `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity`
+  )
+  return verify.code === 0
+    ? { success: true }
+    : { success: false, error: 'AWS SSO login completed but verification failed.' }
+}
+
+/** Get the AWS caller identity (for display) */
+export async function getAWSCallerIdentity(): Promise<string | null> {
+  const result = await sh(
+    `aws sts --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" get-caller-identity --output json 2>/dev/null`
+  )
+  if (result.code !== 0) return null
+  try {
+    const identity = JSON.parse(result.stdout)
+    return identity.Arn || null
+  } catch {
+    return null
+  }
 }

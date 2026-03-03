@@ -64,7 +64,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 4:
       return [
-        'Cloning factorialco/factorial to ~/code/factorial...',
+        'Cloning factorialco/factorial (patience!)...',
         'Configuring git fsmonitor...',
         'Configuring git untrackedCache...',
         'Running direnv allow...'
@@ -82,8 +82,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
     case 6:
       return [
         'Copying AWS config...',
-        'Running aws sso login --profile development...',
-        'Verifying access (eu-central-1)...'
+        'Verifying AWS session...'
       ]
     case 7:
       return ['Retrieving development/factorial/env...', 'Writing .envrc.localdev_secrets...']
