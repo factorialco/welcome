@@ -60,6 +60,20 @@ export async function isPacmanBased(): Promise<boolean> {
   return distro === 'arch' || distro === 'manjaro'
 }
 
+/** Get a human-friendly label for the current platform/distro */
+export async function getPlatformLabel(): Promise<string> {
+  if (isDarwin()) return 'macOS'
+  const distro = await getLinuxDistro()
+  const labels: Record<LinuxDistro, string> = {
+    ubuntu: 'Ubuntu',
+    debian: 'Debian',
+    arch: 'Arch Linux',
+    manjaro: 'Manjaro',
+    unknown: 'Linux',
+  }
+  return labels[distro]
+}
+
 // ── Shell Detection ────────────────────────────────────
 
 export type ShellType = 'zsh' | 'bash'

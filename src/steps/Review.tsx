@@ -1,11 +1,17 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useWizard, SETUP_TASKS, BRAND_COLOR, agenticCliLabel, editorChoiceLabel } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
+import { getPlatformLabel, getArch } from '../platform.js'
 
 export function ReviewStep() {
   const { config, goNext, goBack, goToStep } = useWizard()
+  const [platformLabel, setPlatformLabel] = useState<string>('')
+
+  useEffect(() => {
+    getPlatformLabel().then((label) => setPlatformLabel(`${label} (${getArch()})`))
+  }, [])
 
   useInput((input, key) => {
     if (key.escape) {
@@ -77,6 +83,13 @@ export function ReviewStep() {
 
         {/* Right column */}
         <Box flexDirection="column" gap={1}>
+          <Box flexDirection="column">
+            <Text color={BRAND_COLOR} bold underline>
+              Platform
+            </Text>
+            <Field label="OS" value={platformLabel || 'detecting...'} color={BRAND_COLOR} />
+          </Box>
+
           <Box flexDirection="column">
             <Text color={BRAND_COLOR} bold underline>
               3. Services
