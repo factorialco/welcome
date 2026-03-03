@@ -512,7 +512,6 @@ export async function runStep2(
   }
 }
 
-/** Step 3: Configure git identity + SSH keys */
 /** Step 3: Configure git identity (SSH is handled by the SSHSetup wizard step) */
 export async function runStep3(
   config: SetupConfig,
@@ -529,11 +528,13 @@ export async function runStep3(
       await sh(`git config --global user.email "${config.email}"`)
     }
 
-    // SSH key was already set up in the SSHSetup wizard step.
+    // SSH was already set up in the SSHSetup wizard step.
     // Just verify it's still working.
     if (config.sshKeyPath) {
       onProgress(1, 'Verifying SSH access...')
-      const ok = await verifySSHAccess(config.sshKeyPath)
+      const ok = config.sshKeyPath === '__default__'
+        ? await checkGitHubConnectivity()
+        : await verifySSHAccess(config.sshKeyPath)
       if (!ok) {
         throw new Error('SSH key no longer has access. Please re-run the wizard.')
       }
@@ -1304,6 +1305,15 @@ export const TASK_RUNNERS: Record<number, TaskRunner> = {
 }
 
 // ── SSH Setup Helpers (used by SSHSetup wizard step) ────
+
+/** Quick check: can we already access factorialco/factorial via SSH with default config? */
+export async function checkGitHubConnectivity(): Promise<boolean> {
+  const result = await sh(
+    `git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+    { timeout: 15000 }
+  )
+  return result.code === 0
+}
 
 /** Search for existing SSH private keys */
 export async function findExistingSSHKeys(): Promise<string[]> {

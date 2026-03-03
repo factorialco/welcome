@@ -5,6 +5,7 @@ import { useWizard, BRAND_COLOR } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Divider } from '../components/UI.js'
 import {
+  checkGitHubConnectivity,
   findWorkingSSHKey,
   generateSSHKey,
   copyToClipboard,
@@ -40,6 +41,16 @@ export function SSHSetupStep() {
   async function checkExistingKey() {
     setPhase('checking')
     try {
+      // First, try plain SSH connectivity — covers users who already have
+      // GitHub + SSO configured via their agent, default keys, or ssh config.
+      const hasConnectivity = await checkGitHubConnectivity()
+      if (hasConnectivity) {
+        updateConfig({ sshKeyPath: '__default__' })
+        setPhase('found')
+        return
+      }
+
+      // No default connectivity — scan individual private keys
       const existing = await findWorkingSSHKey()
       if (existing) {
         setKeyPath(existing)
@@ -151,9 +162,9 @@ export function SSHSetupStep() {
         <Box flexDirection="column" gap={1}>
           <Text>
             <Text color="green" bold>{'✓ '}</Text>
-            Found a working SSH key with access to factorialco/factorial.
+            SSH access to factorialco/factorial is working.
           </Text>
-          <Text dimColor>  Key: {keyPath}</Text>
+          {keyPath && <Text dimColor>  Key: {keyPath}</Text>}
           <Divider />
           <Text>
             Press{' '}
