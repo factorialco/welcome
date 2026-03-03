@@ -179,7 +179,11 @@ function runCommand(
       logStream.write(chunk)
     })
 
-    child.on('error', reject)
+    child.on('error', (err) => {
+      logStream.end()
+      // If spawn itself failed (e.g. command not found), resolve with error code
+      resolve({ code: 1, stdout: stdout.trim(), stderr: (stderr + '\n' + err.message).trim() })
+    })
     child.on('close', (code) => {
       logStream.end()
       resolve({ code: code ?? 1, stdout: stdout.trim(), stderr: stderr.trim() })
@@ -1308,9 +1312,10 @@ export const TASK_RUNNERS: Record<number, TaskRunner> = {
 
 /** Quick check: can we already access factorialco/factorial via SSH with default config? */
 export async function checkGitHubConnectivity(): Promise<boolean> {
+  const sshOpts = '-o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no'
   const result = await sh(
-    `git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
-    { timeout: 15000 }
+    `GIT_SSH_COMMAND="ssh ${sshOpts}" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`,
+    { timeout: 10000 }
   )
   return result.code === 0
 }
@@ -1319,7 +1324,8 @@ export async function checkGitHubConnectivity(): Promise<boolean> {
 export async function findExistingSSHKeys(): Promise<string[]> {
   await mkdir(SSH_DIR, { recursive: true })
   const findResult = await sh(
-    `find ${SSH_DIR} -type f -not -name "*.pub" -exec grep -l "PRIVATE KEY" {} \\; 2>/dev/null || true`
+    `find ${SSH_DIR} -maxdepth 1 -type f -not -name "*.pub" -not -name "config" -not -name "known_hosts" -not -name "known_hosts.old" -not -name "authorized_keys" -exec grep -l "PRIVATE KEY" {} \\; 2>/dev/null || true`,
+    { timeout: 5000 }
   )
   return findResult.stdout.split('\n').filter(Boolean)
 }
@@ -1367,8 +1373,8 @@ export async function generateSSHKey(email: string): Promise<{ keyPath: string; 
     await appendFile(sshConfigFile, block)
   }
 
-  // Add to SSH agent
-  await sh(getSshAddCommand(keyFile))
+  // Add to SSH agent (timeout in case it prompts for passphrase)
+  await sh(getSshAddCommand(keyFile), { timeout: 5000 })
 
   const publicKey = await readFile(`${keyFile}.pub`, 'utf-8')
   return { keyPath: keyFile, publicKey: publicKey.trim() }
@@ -1405,7 +1411,7 @@ export async function configureSSHKey(keyPath: string): Promise<void> {
     const block = `\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ${keyPath}\n    IdentitiesOnly yes\n`
     await appendFile(sshConfigFile, block)
   }
-  await sh(getSshAddCommand(keyPath))
+  await sh(getSshAddCommand(keyPath), { timeout: 5000 })
 }
 
 // ── AWS Setup Helpers (used by AWSSetup wizard step) ────
@@ -1414,6 +1420,24 @@ export async function configureSSHKey(keyPath: string): Promise<void> {
 export async function checkAWSCLI(): Promise<boolean> {
   const result = await sh('aws --version 2>/dev/null')
   return result.code === 0
+}
+
+/** Install AWS CLI using the platform package manager */
+export async function installAWSCLI(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const installCmd = await getNativeInstallCommand(['awscli'])
+    const result = await sh(installCmd, { interactive: true, timeout: 120000 })
+    if (result.code !== 0) {
+      return { success: false, error: `Package install failed: ${result.stderr || 'unknown error'}` }
+    }
+    // Verify it installed
+    const verify = await checkAWSCLI()
+    return verify
+      ? { success: true }
+      : { success: false, error: 'Package installed but aws command not found in PATH.' }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
 }
 
 /** Check if ~/.aws/config exists */

@@ -6,6 +6,7 @@ import { StepContainer } from '../components/StepContainer.js'
 import { Divider } from '../components/UI.js'
 import {
   checkAWSCLI,
+  installAWSCLI,
   hasAWSConfig,
   checkAWSSession,
   runAWSSSOLogin,
@@ -14,7 +15,7 @@ import {
 
 type Phase =
   | 'checking'       // Checking AWS CLI and existing session
-  | 'no-cli'         // AWS CLI not installed (will be installed during task 1)
+  | 'installing'     // Installing AWS CLI
   | 'authenticated'  // Already authenticated, ready to continue
   | 'ready'          // Ready to start SSO login
   | 'logging-in'     // SSO login in progress (browser open)
@@ -39,8 +40,14 @@ export function AWSSetupStep() {
       // Check if AWS CLI is available
       const cliInstalled = await checkAWSCLI()
       if (!cliInstalled) {
-        setPhase('no-cli')
-        return
+        // Auto-install AWS CLI
+        setPhase('installing')
+        const installResult = await installAWSCLI()
+        if (!installResult.success) {
+          setErrorMsg(installResult.error || 'Failed to install AWS CLI.')
+          setPhase('error')
+          return
+        }
       }
 
       // Check if config exists
@@ -87,7 +94,7 @@ export function AWSSetupStep() {
   }
 
   useInput((input, key) => {
-    if (phase === 'authenticated' || phase === 'verified' || phase === 'no-cli') {
+    if (phase === 'authenticated' || phase === 'verified') {
       if (key.return) {
         goNext()
       }
@@ -122,21 +129,12 @@ export function AWSSetupStep() {
         </Box>
       )}
 
-      {phase === 'no-cli' && (
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            <Text color="yellow" bold>{'! '}</Text>
-            AWS CLI is not installed yet. It will be installed during the system packages step.
+      {phase === 'installing' && (
+        <Box>
+          <Text color={BRAND_COLOR}>
+            <Spinner type="dots" />
           </Text>
-          <Text dimColor>
-            AWS SSO login will be handled automatically during installation.
-          </Text>
-          <Divider />
-          <Text>
-            Press{' '}
-            <Text color={BRAND_COLOR} bold>Enter</Text>
-            {' '}to continue to installation
-          </Text>
+          <Text> Installing AWS CLI...</Text>
         </Box>
       )}
 
