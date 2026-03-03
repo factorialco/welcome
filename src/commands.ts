@@ -139,8 +139,10 @@ async function dirExists(dirPath: string): Promise<boolean> {
 
 /**
  * Run a shell command and return its output.
- * Inherits stdio for interactive commands (sudo, aws sso login, etc.)
- * when `interactive` is true.
+ * When `interactive` is true, stdin is inherited so the user can
+ * respond to prompts (sudo, aws sso login, etc.), but stdout/stderr
+ * are still piped and written to the log file to avoid corrupting
+ * the Ink TUI layout.
  */
 function runCommand(
   cmd: string,
@@ -154,7 +156,7 @@ function runCommand(
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const stdio: ('inherit' | 'pipe')[] = options.interactive
-      ? ['inherit', 'inherit', 'pipe']
+      ? ['inherit', 'pipe', 'pipe']
       : ['pipe', 'pipe', 'pipe']
 
     const child: ChildProcess = spawn(cmd, args, {
@@ -169,11 +171,11 @@ function runCommand(
     let stdout = ''
     let stderr = ''
 
-    if (!options.interactive) {
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString()
-      })
-    }
+    child.stdout?.on('data', (data: Buffer) => {
+      const chunk = data.toString()
+      stdout += chunk
+      logStream.write(chunk)
+    })
 
     child.stderr?.on('data', (data: Buffer) => {
       const chunk = data.toString()
@@ -581,12 +583,6 @@ export async function runStep3(
       await sh(getClipboardCommand(pubKey.trim()))
       await sh(getOpenCommand('https://github.com/settings/keys'))
 
-      // Wait for user to add key — in TUI context this is handled by the interactive prompt
-      onProgress(5, 'Public key copied to clipboard. Waiting for GitHub authorization...')
-      await sh(`echo "Please add the SSH key to GitHub and authorize '${ORG_NAME}' SSO."`, {
-        interactive: true
-      })
-
       workingKey = keyFile
     } else {
       // Configure SSH agent with existing key
@@ -615,12 +611,27 @@ export async function runStep3(
       }
     }
 
-    // Final verify
-    onProgress(5, 'Verifying SSO authorization...')
-    const verify = await sh(
-      `GIT_SSH_COMMAND="ssh -i '${workingKey}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`
-    )
-    if (verify.code !== 0) {
+    // Final verify — poll for SSO authorization so the user has time to
+    // add the key to GitHub and authorize the organization.
+    onProgress(5, 'Verifying SSO authorization... (add your SSH key at github.com/settings/keys)')
+    const maxSshRetries = 60       // up to ~10 minutes
+    const sshRetryInterval = 10    // seconds
+    let sshAuthorized = false
+    for (let i = 0; i < maxSshRetries; i++) {
+      const verify = await sh(
+        `GIT_SSH_COMMAND="ssh -i '${workingKey}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" git ls-remote git@github.com:${ORG_NAME}/${REPO_NAME}.git 2>/dev/null`
+      )
+      if (verify.code === 0) {
+        sshAuthorized = true
+        break
+      }
+      onProgress(
+        5,
+        `Waiting for SSH key authorization... (${i + 1}/${maxSshRetries}) — add key at github.com/settings/keys and authorize ${ORG_NAME} SSO`
+      )
+      await new Promise((r) => setTimeout(r, sshRetryInterval * 1000))
+    }
+    if (!sshAuthorized) {
       throw new Error(
         'SSH key is not authorized to access the Factorial organization. Please add your SSH key to GitHub and authorize SSO.'
       )

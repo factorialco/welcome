@@ -44,19 +44,18 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
   switch (taskId) {
     case 1:
       return [
-        'Checking Homebrew installation...',
-        'Generating Brewfile (30+ packages)...',
-        'brew bundle install...',
+        'Checking package manager...',
+        'Preparing package list...',
+        'Installing packages...',
         'Configuring direnv...'
       ]
     case 2:
       return [
-        'Verifying no Docker Desktop...',
-        'Installing docker + colima...',
-        `Detecting architecture (${process.arch === 'arm64' ? 'vz/virtiofs' : 'qemu/sshfs'})...`,
-        'Configuring colima.yaml...',
-        'Starting colima...',
-        'Testing docker hello-world...'
+        'Verifying Docker setup...',
+        'Installing container runtime...',
+        'Configuring runtime...',
+        'Starting container runtime...',
+        'Testing docker...'
       ]
     case 3:
       return [
@@ -64,7 +63,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'Testing GitHub access to factorialco/factorial...',
         `Generating Ed25519 key for ${config.email || 'user'}...`,
         'Configuring ~/.ssh/config...',
-        'Adding to macOS keychain...',
+        'Adding key to SSH agent...',
         'Verifying SSO authorization...'
       ]
     case 4:
