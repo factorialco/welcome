@@ -5,6 +5,31 @@ import { homedir, arch as osArch } from 'node:os'
 import path from 'node:path'
 import { createWriteStream } from 'node:fs'
 import type { SetupConfig } from './context.js'
+import {
+  getPlatform,
+  isDarwin,
+  isLinux,
+  getShellArgs,
+  getShellProfile,
+  getShellRc,
+  getClipboardCommand,
+  getOpenCommand,
+  getSshAddCommand,
+  getRamCommand,
+  getOsVersionCommand,
+  getMachineIdCommand,
+  getDockerDesktopCheckPath,
+  isArm,
+  buildPackageInstallPlan,
+  getNativeInstallCommand,
+  getAurInstallCommand,
+  buildGuiAppInstallPlan,
+  getLibBuildFlags,
+  getDockerInstallStrategy,
+  getDockerNativeInstallCommands,
+  getDockerServiceCommands,
+  getUserShell,
+} from './platform.js'
 
 // ── Constants (matching welcome.sh) ─────────────────────
 const HOME = homedir()
@@ -164,12 +189,13 @@ function runCommand(
   })
 }
 
-/** Run a shell command string via zsh */
+/** Run a shell command string via the user's default shell */
 async function sh(
   command: string,
   options: { cwd?: string; interactive?: boolean; env?: Record<string, string> } = {}
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  return runCommand('zsh', ['-lc', command], options)
+  const [shell, baseArgs] = getShellArgs()
+  return runCommand(shell, [...baseArgs, command], options)
 }
 
 /** Ensure a line exists in a file (append if missing) */
@@ -206,105 +232,165 @@ async function addOrUpdateEnvVar(
   }
 }
 
+// ── Brew formula names for all system packages ──────────
+// Used by both the macOS Brewfile path and Linux package mapping
+const BASE_BREW_FORMULAE = [
+  'awscli',
+  'bat',
+  'direnv',
+  'fzf',
+  'gh',
+  'git',
+  'gitleaks',
+  'htop',
+  'imagemagick',
+  'jq',
+  'lazydocker',
+  'libvips',
+  'libyaml',
+  'make',
+  'mysql',
+  'nss',
+  'openssl',
+  'pdftk-java',
+  'ripgrep',
+  'semgrep',
+  'shared-mime-info',
+  'watchman',
+  'zstd',
+  'gpg',
+  'composer',
+  'yq',
+]
+
+const CLI_BREW_MAP: Record<string, string> = {
+  opencode: 'opencode',
+  claude: 'claude-code',
+  codex: 'codex'
+}
+
+const EDITOR_CASK_MAP: Record<string, string> = {
+  cursor: 'cursor',
+  vscode: 'visual-studio-code'
+}
+
 // ── Task Runners ────────────────────────────────────────
 // Each function corresponds to one of the 13 steps from welcome.sh.
 // They report progress via the `onProgress` callback and return a TaskResult.
 
-/** Step 1: Install system packages (Homebrew + Brewfile + direnv) */
+/** Step 1: Install system packages */
 export async function runStep1(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    // 1. Check/install Homebrew
-    onProgress(0, 'Checking Homebrew installation...')
-    const brewCheck = await sh('command -v brew')
-    if (brewCheck.code !== 0) {
-      onProgress(0, 'Installing Homebrew...')
-      await sh(
-        'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-        { interactive: true }
-      )
-      // Set up brew in PATH
-      const brewPrefix = (
-        await sh('/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix')
-      ).stdout
-      const profile = path.join(HOME, '.zprofile')
-      await ensureLine(profile, `eval "$(${brewPrefix}/bin/brew shellenv)"`)
-    }
-
-    // 2. Generate Brewfile
-    onProgress(1, 'Generating Brewfile...')
-    await mkdir(ROOT_DIR, { recursive: true })
+    const platform = getPlatform()
     const versionManager = config.versionManager === 'mise' ? 'mise' : 'asdf'
-    // Map agentic CLIs to brew formula names
-    const cliBrewMap: Record<string, string> = {
-      opencode: 'opencode',
-      claude: 'claude-code',
-      codex: 'codex'
+    const cliFormulae = config.agenticClis.map((cli) => CLI_BREW_MAP[cli]).filter(Boolean) as string[]
+    const allFormulae = [versionManager, ...BASE_BREW_FORMULAE, ...cliFormulae]
+
+    if (platform === 'darwin') {
+      // ── macOS: Homebrew path ──
+      onProgress(0, 'Checking Homebrew installation...')
+      const brewCheck = await sh('command -v brew')
+      if (brewCheck.code !== 0) {
+        onProgress(0, 'Installing Homebrew...')
+        await sh(
+          'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+          { interactive: true }
+        )
+        const brewPrefix = (
+          await sh('/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix')
+        ).stdout
+        const profile = getShellProfile()
+        await ensureLine(profile, `eval "$(${brewPrefix}/bin/brew shellenv)"`)
+      }
+
+      // Generate Brewfile
+      onProgress(1, 'Generating Brewfile...')
+      await mkdir(ROOT_DIR, { recursive: true })
+      const cliBrewLines = cliFormulae.map((f) => `brew "${f}"`)
+      const editorCaskLines = config.editors.map((e) => `cask "${EDITOR_CASK_MAP[e]}"`)
+
+      const brewfile =
+        [
+          `brew "${versionManager}"`,
+          ...BASE_BREW_FORMULAE.map((f) => `brew "${f}"`),
+          ...cliBrewLines,
+          '',
+          'cask_args appdir: "/Applications"',
+          ...editorCaskLines,
+          'cask "font-fira-code-nerd-font"',
+          'cask "iterm2"',
+          'cask "session-manager-plugin"',
+          'cask "libreoffice"',
+          'cask "ngrok"'
+        ].join('\n') + '\n'
+
+      await writeFile(path.join(ROOT_DIR, 'Brewfile'), brewfile)
+
+      onProgress(2, 'Running brew bundle install (this may take a while)...')
+      const brewResult = await sh(`brew bundle --file="${ROOT_DIR}/Brewfile" --force --no-upgrade`, {
+        interactive: true
+      })
+      if (brewResult.code !== 0) {
+        throw new Error('brew bundle install failed')
+      }
+    } else {
+      // ── Linux: native package manager path ──
+      onProgress(0, 'Building package install plan...')
+      const plan = await buildPackageInstallPlan(allFormulae)
+
+      // Install native packages
+      if (plan.nativePackages.length > 0) {
+        onProgress(1, `Installing ${plan.nativePackages.length} system packages...`)
+        // Ensure package index is up to date on apt-based systems
+        await sh('sudo apt-get update 2>/dev/null || true', { interactive: true })
+        const installCmd = await getNativeInstallCommand(plan.nativePackages)
+        const result = await sh(installCmd, { interactive: true })
+        if (result.code !== 0) {
+          throw new Error('System package installation failed')
+        }
+      }
+
+      // Install AUR packages (Arch only)
+      if (plan.aurPackages.length > 0) {
+        onProgress(2, `Installing ${plan.aurPackages.length} AUR packages...`)
+        await sh(getAurInstallCommand(plan.aurPackages), { interactive: true })
+      }
+
+      // Run special install commands
+      for (let i = 0; i < plan.specialInstalls.length; i++) {
+        const { name, commands } = plan.specialInstalls[i]!
+        onProgress(2, `Installing ${name}...`)
+        for (const cmd of commands) {
+          await sh(cmd, { interactive: true })
+        }
+      }
+
+      // Install GUI apps
+      onProgress(2, 'Installing GUI applications...')
+      const guiApps = [
+        ...config.editors.map((e) => ({ brewCask: EDITOR_CASK_MAP[e]!, name: e })),
+        { brewCask: 'font-fira-code-nerd-font', name: 'Fira Code Nerd Font' },
+        { brewCask: 'iterm2', name: 'iTerm2' },
+        { brewCask: 'session-manager-plugin', name: 'AWS Session Manager' },
+        { brewCask: 'libreoffice', name: 'LibreOffice' },
+        { brewCask: 'ngrok', name: 'ngrok' },
+      ]
+      const guiPlan = await buildGuiAppInstallPlan(guiApps)
+      for (const cmd of guiPlan.commands) {
+        await sh(cmd, { interactive: true })
+      }
+
+      if (plan.skippedPackages.length > 0) {
+        // Log skipped packages (non-fatal)
+        onProgress(2, `Note: skipped packages not available on this platform: ${plan.skippedPackages.join(', ')}`)
+      }
     }
-    const cliBrewLines = config.agenticClis.map((cli) => `brew "${cliBrewMap[cli]}"`)
 
-    // Map editors to Homebrew cask names
-    const editorCaskMap: Record<string, string> = {
-      cursor: 'cursor',
-      vscode: 'visual-studio-code'
-    }
-    const editorCaskLines = config.editors.map((e) => `cask "${editorCaskMap[e]}"`)
-
-    const brewfile =
-      [
-        `brew "${versionManager}"`,
-        'brew "awscli"',
-        'brew "bat"',
-        'brew "direnv"',
-        'brew "fzf"',
-        'brew "gh"',
-        'brew "git"',
-        'brew "gitleaks"',
-        'brew "htop"',
-        'brew "imagemagick"',
-        'brew "jq"',
-        'brew "lazydocker"',
-        'brew "libvips"',
-        'brew "libyaml"',
-        'brew "make"',
-        'brew "mysql"',
-        'brew "nss"',
-        'brew "openssl"',
-        'brew "pdftk-java"',
-        'brew "ripgrep"',
-        'brew "semgrep"',
-        'brew "shared-mime-info"',
-        'brew "watchman"',
-        'brew "zstd"',
-        'brew "gpg"',
-        'brew "composer"',
-        'brew "yq"',
-        ...cliBrewLines,
-        '',
-        'cask_args appdir: "/Applications"',
-        ...editorCaskLines,
-        'cask "font-fira-code-nerd-font"',
-        'cask "iterm2"',
-        'cask "session-manager-plugin"',
-        'cask "libreoffice"',
-        'cask "ngrok"'
-      ].join('\n') + '\n'
-
-    await writeFile(path.join(ROOT_DIR, 'Brewfile'), brewfile)
-
-    // 3. brew bundle install
-    onProgress(2, 'Running brew bundle install (this may take a while)...')
-    const brewResult = await sh(`brew bundle --file="${ROOT_DIR}/Brewfile" --force --no-upgrade`, {
-      interactive: true
-    })
-    if (brewResult.code !== 0) {
-      throw new Error('brew bundle install failed')
-    }
-
-    // 4. Configure direnv
+    // Configure direnv (cross-platform)
     onProgress(3, 'Configuring direnv...')
     const direnvConfigDir = path.join(HOME, '.config', 'direnv')
     const direnvConfigFile = path.join(direnvConfigDir, 'direnv.toml')
@@ -319,59 +405,104 @@ export async function runStep1(
   }
 }
 
-/** Step 2: Setup Docker (Colima) */
+/** Step 2: Setup Docker */
 export async function runStep2(
   _config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    // 1. Check Docker Desktop not installed
-    onProgress(0, 'Checking for Docker Desktop...')
-    if (await dirExists('/Applications/Docker.app')) {
-      throw new Error('Docker Desktop is installed. Please uninstall it before continuing.')
+    const strategy = await getDockerInstallStrategy()
+
+    if (strategy === 'colima') {
+      // ── macOS: Colima path ──
+      onProgress(0, 'Checking for Docker Desktop...')
+      const dockerDesktopPath = getDockerDesktopCheckPath()
+      if (dockerDesktopPath && await dirExists(dockerDesktopPath)) {
+        throw new Error('Docker Desktop is installed. Please uninstall it before continuing.')
+      }
+
+      onProgress(1, 'Installing docker, colima, and plugins...')
+      await sh(
+        'brew install docker && brew link docker && brew install docker-compose docker-buildx docker-credential-helper-ecr colima',
+        { interactive: true }
+      )
+
+      // Detect architecture and configure
+      onProgress(2, 'Detecting architecture and configuring Colima...')
+      const armArch = isArm()
+      const macosVer = (await sh(getOsVersionCommand())).stdout
+      const macosGe13 = parseInt(macosVer) >= 13
+      const vmType = armArch && macosGe13 ? 'vz' : 'qemu'
+      const mountType = armArch && macosGe13 ? 'virtiofs' : 'sshfs'
+      const colimaArch = armArch ? 'aarch64' : 'x86_64'
+
+      // Determine CPU/memory
+      const totalRamGb = parseInt((await sh(getRamCommand())).stdout) / 1024 / 1024 / 1024
+      const colimaCpu = totalRamGb > 40 ? 4 : 2
+      const colimaMemory = totalRamGb > 40 ? 8 : 2
+
+      // Write colima.yaml
+      onProgress(3, 'Writing Colima configuration...')
+      const colimaConfigDir = path.join(HOME, '.colima', 'default')
+      await mkdir(colimaConfigDir, { recursive: true })
+      const colimaConfig = `cpu: ${colimaCpu}\nmemory: ${colimaMemory}\ndisk: 100\narch: ${colimaArch}\nruntime: docker\nvmType: ${vmType}\nmountType: ${mountType}\nmounts: []\nkubernetes:\n  enabled: false\n`
+      await writeFile(path.join(colimaConfigDir, 'colima.yaml'), colimaConfig)
+
+      // Start Colima
+      onProgress(4, 'Starting Colima...')
+      await sh('colima status 2>&1 | grep -q "colima is running" && colima stop || true')
+      await sh('colima start', { interactive: true })
+      const serviceCommands = await getDockerServiceCommands()
+      for (const cmd of serviceCommands) {
+        await sh(cmd)
+      }
+      await sh('docker context use colima')
+    } else {
+      // ── Linux: native Docker Engine ──
+      onProgress(0, 'Checking for existing Docker installation...')
+      const dockerCheck = await sh('command -v docker')
+      if (dockerCheck.code !== 0) {
+        onProgress(1, 'Installing Docker Engine...')
+        const installCommands = await getDockerNativeInstallCommands()
+        for (const cmd of installCommands) {
+          await sh(cmd, { interactive: true })
+        }
+      } else {
+        onProgress(1, 'Docker already installed.')
+      }
+
+      // Ensure Docker service is running
+      onProgress(2, 'Enabling Docker service...')
+      const serviceCommands = await getDockerServiceCommands()
+      for (const cmd of serviceCommands) {
+        await sh(cmd, { interactive: true })
+      }
+
+      // Ensure current user can run docker without sudo
+      onProgress(3, 'Configuring Docker group membership...')
+      await sh(`sudo usermod -aG docker $USER 2>/dev/null || true`, { interactive: true })
+
+      // Note: group change may require new login session
+      // Try running docker with newgrp or sg
+      onProgress(4, 'Verifying Docker access...')
+      const canDocker = await sh('docker info >/dev/null 2>&1')
+      if (canDocker.code !== 0) {
+        // Try with sg (new group session) for immediate access
+        await sh('sg docker -c "docker info" >/dev/null 2>&1 || true')
+      }
     }
 
-    // 2. Install docker + colima
-    onProgress(1, 'Installing docker, colima, and plugins...')
-    await sh(
-      'brew install docker && brew link docker && brew install docker-compose docker-buildx docker-credential-helper-ecr colima',
-      { interactive: true }
-    )
-
-    // 3. Detect architecture and configure
-    onProgress(2, 'Detecting architecture and configuring Colima...')
-    const architecture = osArch() // 'arm64' or 'x64'
-    const isArm = architecture === 'arm64'
-    const macosVer = (await sh('sw_vers -productVersion | cut -d. -f1')).stdout
-    const macosGe13 = parseInt(macosVer) >= 13
-    const vmType = isArm && macosGe13 ? 'vz' : 'qemu'
-    const mountType = isArm && macosGe13 ? 'virtiofs' : 'sshfs'
-    const colimaArch = isArm ? 'aarch64' : 'x86_64'
-
-    // Determine CPU/memory
-    const totalRamGb = parseInt((await sh('sysctl -n hw.memsize')).stdout) / 1024 / 1024 / 1024
-    const colimaCpu = totalRamGb > 40 ? 4 : 2
-    const colimaMemory = totalRamGb > 40 ? 8 : 2
-
-    // 4. Write colima.yaml
-    onProgress(3, 'Writing Colima configuration...')
-    const colimaConfigDir = path.join(HOME, '.colima', 'default')
-    await mkdir(colimaConfigDir, { recursive: true })
-    const colimaConfig = `cpu: ${colimaCpu}\nmemory: ${colimaMemory}\ndisk: 100\narch: ${colimaArch}\nruntime: docker\nvmType: ${vmType}\nmountType: ${mountType}\nmounts: []\nkubernetes:\n  enabled: false\n`
-    await writeFile(path.join(colimaConfigDir, 'colima.yaml'), colimaConfig)
-
-    // 5. Stop existing colima if running, then start
-    onProgress(4, 'Starting Colima...')
-    await sh('colima status 2>&1 | grep -q "colima is running" && colima stop || true')
-    await sh('colima start', { interactive: true })
-    await sh('brew services start colima 2>/dev/null || true')
-    await sh('docker context use colima')
-
-    // 6. Test
+    // Test (cross-platform)
     onProgress(5, 'Testing docker with hello-world...')
     const dockerTest = await sh('docker run --rm hello-world')
     if (dockerTest.code !== 0) {
+      // On Linux, the user may need to re-login for group changes
+      if (isLinux()) {
+        throw new Error(
+          'Docker is installed but could not run containers. You may need to log out and back in for docker group membership to take effect, then re-run this step.'
+        )
+      }
       throw new Error('Docker is installed but could not run containers.')
     }
 
@@ -439,18 +570,17 @@ export async function runStep3(
         await appendFile(sshConfigFile, block)
       }
 
-      // 5. Add to keychain
-      onProgress(4, 'Adding to macOS keychain...')
-      await sh(`ssh-add --apple-use-keychain "${keyFile}" 2>/dev/null || true`)
+      // 5. Add to keychain/agent
+      onProgress(4, 'Adding SSH key to agent...')
+      await sh(getSshAddCommand(keyFile))
 
       // 6. Copy public key to clipboard and open GitHub
       const pubKey = await readFile(`${keyFile}.pub`, 'utf-8')
-      await sh(`echo "${pubKey.trim()}" | pbcopy`)
-      await sh('open "https://github.com/settings/keys" 2>/dev/null || true')
+      await sh(getClipboardCommand(pubKey.trim()))
+      await sh(getOpenCommand('https://github.com/settings/keys'))
 
       // Wait for user to add key — in TUI context this is handled by the interactive prompt
       onProgress(5, 'Public key copied to clipboard. Waiting for GitHub authorization...')
-      // Give the user time to add the key, then verify
       await sh(`echo "Please add the SSH key to GitHub and authorize '${ORG_NAME}' SSO."`, {
         interactive: true
       })
@@ -469,8 +599,8 @@ export async function runStep3(
         await appendFile(sshConfigFile, block)
       }
 
-      onProgress(4, 'Adding to macOS keychain...')
-      await sh(`ssh-add --apple-use-keychain "${workingKey}" 2>/dev/null || true`)
+      onProgress(4, 'Adding SSH key to agent...')
+      await sh(getSshAddCommand(workingKey))
 
       // Set git identity if not already set
       const existingName = (await sh('git config --global user.name || true')).stdout
@@ -561,7 +691,8 @@ export async function runStep5(
   try {
     const plugins = ['rust', 'ruby', 'nodejs', 'python']
     const useMise = config.versionManager === 'mise'
-    const zshrc = path.join(HOME, '.zshrc')
+    const shellRc = getShellRc()
+    const shell = getUserShell()
 
     // 0. Copy .factorialrc
     onProgress(0, 'Copying .factorialrc...')
@@ -570,12 +701,12 @@ export async function runStep5(
     if (await fileExists(factorialrcSrc)) {
       await copyFile(factorialrcSrc, factorialrcDst)
     }
-    await ensureLine(zshrc, 'source "$HOME/.factorialrc"')
+    await ensureLine(shellRc, 'source "$HOME/.factorialrc"')
 
     if (useMise) {
       // 1. Add mise to PATH
       onProgress(1, 'Setting up mise version manager...')
-      await ensureLine(zshrc, 'eval "$(mise activate zsh)"')
+      await ensureLine(shellRc, `eval "$(mise activate ${shell})"`)
 
       // 2-5. Install plugins
       for (let i = 0; i < plugins.length; i++) {
@@ -596,7 +727,7 @@ export async function runStep5(
       // asdf
       onProgress(1, 'Setting up asdf version manager...')
       const asdfPath = 'export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"'
-      await ensureLine(zshrc, asdfPath)
+      await ensureLine(shellRc, asdfPath)
 
       for (let i = 0; i < plugins.length; i++) {
         const plugin = plugins[i]!
@@ -887,10 +1018,8 @@ export async function runStep11(
       return { success: true, duration: Date.now() - start }
     }
 
-    // Get workspace ID
-    const wsResult = await sh(
-      "ioreg -rd1 -c IOPlatformExpertDevice | awk -F'\"' '/IOPlatformUUID/{print tolower($4)}'"
-    )
+    // Get workspace ID (platform-specific)
+    const wsResult = await sh(getMachineIdCommand())
     const workspaceId = wsResult.stdout.trim()
     const cognitoConfigPath = path.join(
       REPO_PATH,
@@ -1139,17 +1268,17 @@ export async function runStep12(
       })
     }
 
-    // mysql2 gem with zstd flags
-    const brewPrefix = (await sh('brew --prefix')).stdout.trim()
+    // mysql2 gem with library flags (platform-aware)
+    const buildFlags = await getLibBuildFlags((cmd) => sh(cmd))
     await sh(
-      `gem install mysql2 -- --with-ldflags="-L${brewPrefix}/opt/zstd/lib" --with-cppflags="-I${brewPrefix}/opt/zstd/include"`,
+      `gem install mysql2 -- --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
       { cwd: path.join(REPO_PATH, 'backend') }
     )
 
-    // ARM64 bundle config
-    if (osArch() === 'arm64') {
+    // Bundle config for native gem compilation
+    if (isArm() || isLinux()) {
       await sh(
-        `bundle config --global build.mysql2 "--with-opt-dir=${brewPrefix}/opt/openssl --with-ldflags=-L${brewPrefix}/opt/zstd/lib --with-cppflags=-I${brewPrefix}/opt/zstd/include"`,
+        `bundle config --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
         { cwd: path.join(REPO_PATH, 'backend') }
       )
     }
