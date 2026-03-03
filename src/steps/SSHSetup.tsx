@@ -208,9 +208,10 @@ export function SSHSetupStep() {
               {copied && <Text color="green"> (copied!)</Text>}
             </Text>
             <Text>
-              {'  '}2. Press <Text color={BRAND_COLOR} bold>o</Text> to open github.com/settings/keys
+              {'  '}2. Press <Text color={BRAND_COLOR} bold>o</Text> to open GitHub SSH keys settings
               {opened && <Text color="green"> (opened!)</Text>}
             </Text>
+            <Text dimColor>{'     '}https://github.com/settings/keys</Text>
             <Text>{'  '}3. Click <Text bold>"New SSH key"</Text>, paste the key, and save</Text>
             <Text>{'  '}4. Click <Text bold>"Configure SSO"</Text> next to the key and authorize <Text bold>factorialco</Text></Text>
             <Text>

@@ -212,6 +212,9 @@ export function AWSSetupStep() {
           <Text dimColor>
             Complete the sign-in in your browser, then return here.
           </Text>
+          <Text dimColor>
+            If the browser didn't open, check <Text color={BRAND_COLOR}>/tmp/welcome.log</Text> for the login URL.
+          </Text>
         </Box>
       )}
 
