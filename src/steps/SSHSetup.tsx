@@ -132,11 +132,17 @@ export function SSHSetupStep() {
       if (input === 'v' || input === 'V') {
         handleVerify()
       }
+      if (input === 's' || input === 'S') {
+        goNext()
+      }
     }
     if (phase === 'error') {
       if (input === 'r' || input === 'R') {
         setErrorMsg('')
         checkExistingKey()
+      }
+      if (input === 's' || input === 'S') {
+        goNext()
       }
     }
     if (key.escape) {
@@ -242,6 +248,10 @@ export function SSHSetupStep() {
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
+              <Text color="gray">s</Text> skip
+            </Text>
+            <Text dimColor>|</Text>
+            <Text dimColor>
               <Text color="gray">Esc</Text> back
             </Text>
           </Box>
@@ -283,6 +293,10 @@ export function SSHSetupStep() {
           <Box gap={2}>
             <Text>
               Press <Text color={BRAND_COLOR} bold>r</Text> to retry
+            </Text>
+            <Text dimColor>|</Text>
+            <Text dimColor>
+              <Text color="gray">s</Text> skip
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
