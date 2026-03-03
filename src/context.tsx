@@ -8,6 +8,7 @@ export const BRAND_HEX = '#ff365f'
 // ── Config types matching welcome.sh user prompts ──────
 export type VersionManager = 'mise' | 'asdf'
 export type AgenticCli = 'opencode' | 'claude' | 'codex'
+export type McpServer = 'playwright' | 'sentry' | 'datadog'
 export type EditorChoice = 'cursor' | 'vscode'
 
 export function agenticCliLabel(cli: AgenticCli): string {
@@ -15,6 +16,14 @@ export function agenticCliLabel(cli: AgenticCli): string {
     case 'opencode': return 'OpenCode'
     case 'claude': return 'Claude Code'
     case 'codex': return 'Codex'
+  }
+}
+
+export function mcpServerLabel(mcp: McpServer): string {
+  switch (mcp) {
+    case 'playwright': return 'Playwright'
+    case 'sentry': return 'Sentry'
+    case 'datadog': return 'Datadog'
   }
 }
 
@@ -35,6 +44,9 @@ export type SetupConfig = {
 
   // Agentic CLIs
   agenticClis: AgenticCli[]
+
+  // MCP Servers (for OpenCode)
+  mcpServers: McpServer[]
 
   // Editors (step 9)
   editors: EditorChoice[]
@@ -63,6 +75,7 @@ export const DEFAULT_CONFIG: SetupConfig = {
   email: '',
   versionManager: 'mise',
   agenticClis: ['opencode'],
+  mcpServers: [],
   editors: [],
   sshKeyPath: '',
   awsAuthenticated: false,

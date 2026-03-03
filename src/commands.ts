@@ -4,7 +4,7 @@ import { constants } from 'node:fs'
 import { homedir, arch as osArch } from 'node:os'
 import path from 'node:path'
 import { createWriteStream } from 'node:fs'
-import type { SetupConfig } from './context.js'
+import type { SetupConfig, McpServer } from './context.js'
 import {
   getPlatform,
   isDarwin,
@@ -1267,9 +1267,65 @@ export async function runStep12(
   }
 }
 
+// ── OpenCode MCP Server Configurations ──────────────────
+const MCP_SERVER_CONFIGS: Record<McpServer, Record<string, unknown>> = {
+  playwright: {
+    type: 'local',
+    command: ['npx', '@playwright/mcp@latest'],
+    enabled: true
+  },
+  sentry: {
+    type: 'remote',
+    url: 'https://mcp.sentry.dev/mcp',
+    oauth: {},
+    enabled: true
+  },
+  datadog: {
+    type: 'local',
+    command: [
+      'uvx', '--from',
+      'git+https://github.com/shelfio/datadog-mcp.git',
+      'datadog-mcp'
+    ],
+    enabled: true,
+    environment: {
+      DD_API_KEY: '{env:DD_API_KEY}',
+      DD_APP_KEY: '{env:DD_APP_KEY}'
+    }
+  }
+}
+
+async function writeOpenCodeMcpConfig(mcpServers: McpServer[]): Promise<void> {
+  const configDir = path.join(homedir(), '.config', 'opencode')
+  const configPath = path.join(configDir, 'config.json')
+
+  // Build the MCP config object
+  const mcpConfig: Record<string, Record<string, unknown>> = {}
+  for (const server of mcpServers) {
+    mcpConfig[server] = MCP_SERVER_CONFIGS[server]
+  }
+
+  // Read existing config if present, otherwise start fresh
+  let existingConfig: Record<string, unknown> = {}
+  try {
+    const existing = await readFile(configPath, 'utf-8')
+    existingConfig = JSON.parse(existing)
+  } catch {
+    // File doesn't exist or is invalid JSON — start fresh
+  }
+
+  // Merge MCP config into existing config
+  const existingMcp = (existingConfig.mcp as Record<string, unknown>) ?? {}
+  existingConfig['$schema'] = 'https://opencode.ai/config.json'
+  existingConfig.mcp = { ...existingMcp, ...mcpConfig }
+
+  await mkdir(configDir, { recursive: true })
+  await writeFile(configPath, JSON.stringify(existingConfig, null, 2) + '\n')
+}
+
 /** Step 13: Install agent skills */
 export async function runStep13(
-  _config: SetupConfig,
+  config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
@@ -1281,6 +1337,12 @@ export async function runStep13(
       if (result.code !== 0) {
         // Non-fatal: log but continue
       }
+    }
+
+    // Write OpenCode MCP config if any MCP servers were selected
+    if (config.agenticClis.includes('opencode') && config.mcpServers.length > 0) {
+      onProgress(SKILL_REPOS.length, 'Configuring OpenCode MCP servers...')
+      await writeOpenCodeMcpConfig(config.mcpServers)
     }
 
     return { success: true, duration: Date.now() - start }
