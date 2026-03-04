@@ -75,7 +75,7 @@ export const DEFAULT_CONFIG: SetupConfig = {
   email: '',
   versionManager: 'mise',
   agenticClis: ['opencode'],
-  mcpServers: [],
+  mcpServers: ['playwright'],
   editors: [],
   sshKeyPath: '',
   awsAuthenticated: false,
