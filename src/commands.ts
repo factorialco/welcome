@@ -1446,6 +1446,29 @@ export async function hasAWSConfig(): Promise<boolean> {
   return fileExists(awsConfigPath)
 }
 
+/** Ensure a minimal AWS config with the development profile exists (only if no config file present) */
+export async function ensureAWSProfileConfig(): Promise<void> {
+  const awsDir = path.join(HOME, '.aws')
+  const configPath = path.join(awsDir, 'config')
+
+  // Only write if no config file exists at all
+  if (await fileExists(configPath)) {
+    return
+  }
+
+  const profileConfig = `[profile development]
+sso_start_url = https://factorial-main.awsapps.com/start
+sso_region = eu-central-1
+sso_account_id = 800301453252
+sso_role_name = Developer_AWS-Development
+region = eu-central-1
+output = json
+`
+
+  await mkdir(awsDir, { recursive: true })
+  await writeFile(configPath, profileConfig)
+}
+
 /** Check if an active AWS SSO session exists */
 export async function checkAWSSession(): Promise<boolean> {
   const result = await sh(

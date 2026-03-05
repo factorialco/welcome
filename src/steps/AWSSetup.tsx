@@ -8,6 +8,7 @@ import {
   checkAWSCLI,
   installAWSCLI,
   hasAWSConfig,
+  ensureAWSProfileConfig,
   checkAWSSession,
   runAWSSSOLogin,
   getAWSCallerIdentity
@@ -49,6 +50,9 @@ export function AWSSetupStep() {
           return
         }
       }
+
+      // Ensure the development profile config exists
+      await ensureAWSProfileConfig()
 
       // Check if config exists
       const configExists = await hasAWSConfig()
