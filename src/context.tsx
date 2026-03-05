@@ -156,7 +156,7 @@ export const SETUP_TASKS: SetupTask[] = [
   },
   {
     id: 9,
-    icon: '🛠️',
+    icon: '🔧',
     name: 'Install editor extensions',
     description: 'VS Code/Cursor extensions',
     dependsOn: [1]
@@ -177,7 +177,7 @@ export const SETUP_TASKS: SetupTask[] = [
   },
   {
     id: 12,
-    icon: '🧑‍💻',
+    icon: '💻',
     name: 'Setup development environment',
     description: 'Install deps, docker-compose, DB setup',
     dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
