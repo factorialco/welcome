@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, agenticCliLabel, editorChoiceLabel, mcpServerLabel } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, agenticCliLabel, editorChoiceLabel } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
 import { getPlatformLabel, getArch } from '../platform.js'
@@ -68,18 +68,6 @@ export function ReviewStep() {
               dimValue={config.agenticClis.length === 0}
               color={BRAND_COLOR}
             />
-            {config.agenticClis.includes('opencode') && (
-              <Field
-                label="MCP Servers"
-                value={
-                  config.mcpServers.length > 0
-                    ? config.mcpServers.map(mcpServerLabel).join(', ')
-                    : 'None'
-                }
-                dimValue={config.mcpServers.length === 0}
-                color={BRAND_COLOR}
-              />
-            )}
             <Field
               label="Editors"
               value={
