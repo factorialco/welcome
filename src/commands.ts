@@ -265,10 +265,13 @@ const BASE_BREW_FORMULAE = [
   'yq',
 ]
 
-const CLI_BREW_MAP: Record<string, string> = {
+const CLI_BREW_FORMULAE_MAP: Record<string, string> = {
   opencode: 'opencode',
-  claude: 'claude-code',
   codex: 'codex'
+}
+
+const CLI_BREW_CASK_MAP: Record<string, string> = {
+  claude: 'claude-code'
 }
 
 const EDITOR_CASK_MAP: Record<string, string> = {
@@ -342,7 +345,8 @@ export async function runStep1(
   try {
     const platform = getPlatform()
     const versionManager = config.versionManager === 'mise' ? 'mise' : 'asdf'
-    const cliFormulae = config.agenticClis.map((cli) => CLI_BREW_MAP[cli]).filter(Boolean) as string[]
+    const cliFormulae = config.agenticClis.map((cli) => CLI_BREW_FORMULAE_MAP[cli]).filter(Boolean) as string[]
+    const cliCasks = config.agenticClis.map((cli) => CLI_BREW_CASK_MAP[cli]).filter(Boolean) as string[]
     const allFormulae = [versionManager, ...BASE_BREW_FORMULAE, ...cliFormulae]
 
     if (platform === 'darwin') {
@@ -354,6 +358,7 @@ export async function runStep1(
       onProgress(1, 'Generating Brewfile...')
       await mkdir(ROOT_DIR, { recursive: true })
       const cliBrewLines = cliFormulae.map((f) => `brew "${f}"`)
+      const cliCaskLines = cliCasks.map((f) => `cask "${f}"`)
       const editorCaskLines = config.editors.map((e) => `cask "${EDITOR_CASK_MAP[e]}"`)
 
       const brewfile =
@@ -364,6 +369,7 @@ export async function runStep1(
           '',
           'cask_args appdir: "/Applications"',
           ...editorCaskLines,
+          ...cliCaskLines,
           'cask "font-fira-code-nerd-font"',
           'cask "iterm2"',
           'cask "session-manager-plugin"',
