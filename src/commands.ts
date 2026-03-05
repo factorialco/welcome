@@ -280,6 +280,23 @@ const EDITOR_CASK_MAP: Record<string, string> = {
 // Each function corresponds to one of the 13 steps from welcome.sh.
 // They report progress via the `onProgress` callback and return a TaskResult.
 
+/** Ensure Homebrew is installed on macOS; no-op on other platforms */
+export async function ensureHomebrew(): Promise<void> {
+  if (!isDarwin()) return
+  const brewCheck = await sh('command -v brew')
+  if (brewCheck.code === 0) return
+
+  await sh(
+    'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
+    { interactive: true }
+  )
+  const brewPrefix = (
+    await sh('/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix')
+  ).stdout.trim()
+  const profile = getShellProfile()
+  await ensureLine(profile, `eval "$(${brewPrefix}/bin/brew shellenv)"`)
+}
+
 /** Step 1: Install system packages */
 export async function runStep1(
   config: SetupConfig,
@@ -295,19 +312,7 @@ export async function runStep1(
     if (platform === 'darwin') {
       // ── macOS: Homebrew path ──
       onProgress(0, 'Checking Homebrew installation...')
-      const brewCheck = await sh('command -v brew')
-      if (brewCheck.code !== 0) {
-        onProgress(0, 'Installing Homebrew...')
-        await sh(
-          'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
-          { interactive: true }
-        )
-        const brewPrefix = (
-          await sh('/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix')
-        ).stdout
-        const profile = getShellProfile()
-        await ensureLine(profile, `eval "$(${brewPrefix}/bin/brew shellenv)"`)
-      }
+      await ensureHomebrew()
 
       // Generate Brewfile
       onProgress(1, 'Generating Brewfile...')
@@ -1425,6 +1430,8 @@ export async function checkAWSCLI(): Promise<boolean> {
 /** Install AWS CLI using the platform package manager */
 export async function installAWSCLI(): Promise<{ success: boolean; error?: string }> {
   try {
+    // On macOS, ensure Homebrew is installed before attempting brew install
+    await ensureHomebrew()
     const installCmd = await getNativeInstallCommand(['awscli'])
     const result = await sh(installCmd, { interactive: true, timeout: 120000 })
     if (result.code !== 0) {
