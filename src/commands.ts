@@ -286,15 +286,23 @@ export async function ensureHomebrew(): Promise<void> {
   const brewCheck = await sh('command -v brew')
   if (brewCheck.code === 0) return
 
+  // Determine prefix deterministically from CPU architecture
+  const brewPrefix = isArm() ? '/opt/homebrew' : '/usr/local'
+  const brewBin = `${brewPrefix}/bin/brew`
+
   await sh(
     'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
     { interactive: true }
   )
-  const brewPrefix = (
-    await sh('/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix')
-  ).stdout.trim()
+
+  // Verify the binary actually exists after install
+  const verifyResult = await sh(`test -x ${brewBin}`)
+  if (verifyResult.code !== 0) {
+    throw new Error(`Homebrew installation completed but ${brewBin} was not found.`)
+  }
+
   const profile = getShellProfile()
-  await ensureLine(profile, `eval "$(${brewPrefix}/bin/brew shellenv)"`)
+  await ensureLine(profile, `eval "$(${brewBin} shellenv)"`)
 }
 
 /** Step 1: Install system packages */
