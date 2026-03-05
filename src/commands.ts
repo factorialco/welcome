@@ -200,6 +200,29 @@ async function sh(
   return runCommand(shell, [...baseArgs, command], options)
 }
 
+/**
+ * Run a command with elevated (root) privileges.
+ *
+ * - **macOS**: uses `osascript` with `do shell script … with administrator
+ *   privileges`, which shows the native macOS authentication dialog.
+ *   Each invocation may prompt the user (macOS caches authorization briefly).
+ *
+ * - **Linux**: falls back to `sudo` with inherited stdin so the user can
+ *   type their password in the terminal.
+ */
+async function sudoSh(
+  command: string,
+  options: { cwd?: string; timeout?: number } = {}
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  if (isDarwin()) {
+    // Escape for AppleScript double-quoted string: backslashes then double quotes
+    const escaped = command.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const script = `do shell script "${escaped}" with administrator privileges`
+    return runCommand('/usr/bin/osascript', ['-e', script], options)
+  }
+  return sh(`sudo ${command}`, { ...options, interactive: true })
+}
+
 /** Ensure a line exists in a file (append if missing) */
 async function ensureLine(filePath: string, line: string): Promise<void> {
   let content = ''
@@ -336,9 +359,21 @@ export async function ensureHomebrew(): Promise<void> {
   await ensureLine(profile, `eval "$(${brewBin} shellenv)"`)
 }
 
-/** Prompt for sudo credentials so they're cached for parallel tasks */
+/**
+ * Prompt for administrator credentials before parallel tasks begin.
+ *
+ * - **macOS**: runs a no-op (`/usr/bin/true`) via `sudoSh()` which triggers
+ *   the native macOS authentication dialog.  This validates that the user
+ *   *can* authenticate (e.g. "Root permissions" is enabled in Self Service+)
+ *   and may briefly cache the authorisation for subsequent `sudoSh()` calls.
+ *
+ * - **Linux**: uses `sudo -v` with inherited stdin so the user can type
+ *   their password in the terminal.
+ */
 export async function warmupSudo(): Promise<boolean> {
-  const result = await sh('sudo -v', { interactive: true, timeout: 120000 })
+  const result = isDarwin()
+    ? await sudoSh('/usr/bin/true', { timeout: 120000 })
+    : await sh('sudo -v', { interactive: true, timeout: 120000 })
   return result.code === 0
 }
 
@@ -719,10 +754,12 @@ export async function runStep5(
       onProgress(6, 'Installing all versions from .tool-versions...')
       await sh('asdf install', { cwd: REPO_PATH, interactive: true })
 
-      // Fix permissions
+      // Fix permissions — resolve username now because sudoSh on macOS runs as
+      // root (where $(whoami) would return "root").
       const asdfInstalls = path.join(HOME, '.asdf', 'installs')
       if (await dirExists(asdfInstalls)) {
-        await sh(`sudo chown -R "$(whoami)" "${asdfInstalls}"`, { interactive: true })
+        const username = process.env.USER || (await sh('whoami')).stdout.trim()
+        await sudoSh(`chown -R ${username} "${asdfInstalls}"`)
       }
     }
 
@@ -844,16 +881,20 @@ export async function runStep8(
     if (missingHosts.length === 0) {
       onProgress(2, 'All host entries already present.')
     } else {
-      // 3. Write to /etc/hosts (requires sudo)
-      onProgress(2, `Adding ${missingHosts.length} entries to /etc/hosts (requires sudo)...`)
-      // Refresh sudo cache in case it expired during parallel execution
-      await sh('sudo -v', { interactive: true })
+      // 3. Write to /etc/hosts (requires elevated privileges)
+      onProgress(2, `Adding ${missingHosts.length} entries to /etc/hosts...`)
       const hostsEntry = `127.0.0.1 ${allHosts.join(' ')}`
-      const result = await sh(`echo "${hostsEntry}" | sudo tee -a /etc/hosts >/dev/null`, {
-        interactive: true
-      })
-      if (result.code !== 0) {
-        throw new Error('Failed to update /etc/hosts')
+      // On macOS sudoSh uses osascript (native dialog); on Linux it uses sudo.
+      // osascript's `do shell script` runs via /bin/sh -c, so >> redirection works.
+      // On Linux, sudo needs `tee -a` because >> is evaluated by the calling shell.
+      if (isDarwin()) {
+        const result = await sudoSh(`echo '${hostsEntry}' >> /etc/hosts`)
+        if (result.code !== 0) throw new Error('Failed to update /etc/hosts')
+      } else {
+        const result = await sh(`echo '${hostsEntry}' | sudo tee -a /etc/hosts >/dev/null`, {
+          interactive: true
+        })
+        if (result.code !== 0) throw new Error('Failed to update /etc/hosts')
       }
     }
 
@@ -1236,10 +1277,8 @@ export async function runStep12(
         cwd: path.join(REPO_PATH, 'backend')
       })
     } else {
-      await sh(`sudo gem install bundler -v "${BUNDLER_VERSION}"`, {
-        cwd: path.join(REPO_PATH, 'backend'),
-        interactive: true
-      })
+      // System gem requires elevated privileges
+      await sudoSh(`gem install bundler -v '${BUNDLER_VERSION}'`)
     }
 
     // mysql2 gem with library flags (platform-aware)

@@ -7,6 +7,7 @@ import { useWizard, SETUP_TASKS, BRAND_COLOR, editorChoiceLabel, type SetupConfi
 import { StepContainer } from '../components/StepContainer.js'
 import { ProgressBar } from '../components/UI.js'
 import { TASK_RUNNERS, warmupSudo, type ProgressCallback, type TaskResult } from '../commands.js'
+import { isDarwin } from '../platform.js'
 
 type TaskStatus = 'pending' | 'waiting' | 'running' | 'done' | 'skipped' | 'failed'
 
@@ -90,7 +91,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       return [
         'Reading current /etc/hosts...',
         'Adding 27 entries for *.local.factorial.dev...',
-        'Writing /etc/hosts (requires sudo)...'
+        'Writing /etc/hosts (requires admin)...'
       ]
     case 9:
       return config.editors.length === 0
@@ -228,6 +229,7 @@ export function InstallStep() {
   }, [tasks, finished, sudoReady])
 
   if (!sudoReady) {
+    const isMac = isDarwin()
     return (
       <StepContainer
         title="🔒  Administrator Access Required"
@@ -235,7 +237,11 @@ export function InstallStep() {
       >
         <Box flexDirection="column" gap={1}>
           <Box flexDirection="column">
-            <Text>Please enter your password below when prompted.</Text>
+            {isMac ? (
+              <Text>A system dialog will appear asking for your password.</Text>
+            ) : (
+              <Text>Please enter your password below when prompted.</Text>
+            )}
           </Box>
 
           <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={2} paddingY={0}>
@@ -253,7 +259,7 @@ export function InstallStep() {
             <Text color={BRAND_COLOR}>
               <Spinner type="dots" />
             </Text>
-            <Text> Waiting for sudo authentication...</Text>
+            <Text> Waiting for administrator authentication...</Text>
           </Box>
         </Box>
       </StepContainer>
