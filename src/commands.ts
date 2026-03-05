@@ -336,6 +336,12 @@ export async function ensureHomebrew(): Promise<void> {
   await ensureLine(profile, `eval "$(${brewBin} shellenv)"`)
 }
 
+/** Prompt for sudo credentials so they're cached for parallel tasks */
+export async function warmupSudo(): Promise<boolean> {
+  const result = await sh('sudo -v', { interactive: true, timeout: 120000 })
+  return result.code === 0
+}
+
 /** Step 1: Install system packages */
 export async function runStep1(
   config: SetupConfig,
@@ -840,6 +846,8 @@ export async function runStep8(
     } else {
       // 3. Write to /etc/hosts (requires sudo)
       onProgress(2, `Adding ${missingHosts.length} entries to /etc/hosts (requires sudo)...`)
+      // Refresh sudo cache in case it expired during parallel execution
+      await sh('sudo -v', { interactive: true })
       const hostsEntry = `127.0.0.1 ${allHosts.join(' ')}`
       const result = await sh(`echo "${hostsEntry}" | sudo tee -a /etc/hosts >/dev/null`, {
         interactive: true

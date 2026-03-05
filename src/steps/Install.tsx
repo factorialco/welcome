@@ -6,7 +6,7 @@ import BigText from 'ink-big-text'
 import { useWizard, SETUP_TASKS, BRAND_COLOR, editorChoiceLabel, type SetupConfig } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { ProgressBar } from '../components/UI.js'
-import { TASK_RUNNERS, type ProgressCallback, type TaskResult } from '../commands.js'
+import { TASK_RUNNERS, warmupSudo, type ProgressCallback, type TaskResult } from '../commands.js'
 
 type TaskStatus = 'pending' | 'waiting' | 'running' | 'done' | 'skipped' | 'failed'
 
@@ -152,6 +152,7 @@ export function InstallStep() {
   const [finished, setFinished] = useState(false)
   const [startTime] = useState(() => Date.now())
   const [totalDuration, setTotalDuration] = useState(0)
+  const [sudoReady, setSudoReady] = useState(false)
 
   // Track which tasks we've already kicked off so we don't double-start
   const startedRef = useRef<Set<number>>(new Set())
@@ -162,9 +163,14 @@ export function InstallStep() {
   )
   const percent = Math.round((doneTasks.length / tasks.length) * 100)
 
+  // Warm up sudo credentials before starting parallel tasks
+  useEffect(() => {
+    warmupSudo().finally(() => setSudoReady(true))
+  }, [])
+
   // Find runnable tasks and start them
   useEffect(() => {
-    if (finished) return
+    if (!sudoReady || finished) return
 
     const allDone = tasks.every(
       (t) => t.status === 'done' || t.status === 'skipped' || t.status === 'failed'
@@ -219,7 +225,40 @@ export function InstallStep() {
         )
       })
     }
-  }, [tasks, finished])
+  }, [tasks, finished, sudoReady])
+
+  if (!sudoReady) {
+    return (
+      <StepContainer
+        title="🔒  Administrator Access Required"
+        subtitle="Some tasks need to modify system files (e.g., /etc/hosts)."
+      >
+        <Box flexDirection="column" gap={1}>
+          <Box flexDirection="column">
+            <Text>Please enter your password below when prompted.</Text>
+          </Box>
+
+          <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={2} paddingY={0}>
+            <Text color="yellow" bold>Important:</Text>
+            <Text color="yellow">
+              You must have enabled <Text bold>"Root permissions"</Text> in the{' '}
+              <Text bold>Self Service+</Text> application before continuing.
+            </Text>
+            <Text color="yellow">
+              If you haven't, press <Text bold>Ctrl+C</Text>, enable it, and re-run the setup.
+            </Text>
+          </Box>
+
+          <Box>
+            <Text color={BRAND_COLOR}>
+              <Spinner type="dots" />
+            </Text>
+            <Text> Waiting for sudo authentication...</Text>
+          </Box>
+        </Box>
+      </StepContainer>
+    )
+  }
 
   if (finished) {
     const completedCount = tasks.filter((t) => t.status === 'done').length
