@@ -345,16 +345,14 @@ export function InstallStep() {
             <Text>
               {'  '}1. <Text bold>cd ~/code/factorial</Text>
             </Text>
+            {config.agenticClis.length > 0 && (
+              <Text>
+                {'  '}2. <Text bold>{config.agenticClis[0]}</Text>
+                <Text dimColor>  (start coding with AI assistance)</Text>
+              </Text>
+            )}
             <Text>
-              {'  '}2. <Text bold>opencode</Text>
-              <Text dimColor>  (start coding with AI assistance)</Text>
-            </Text>
-            <Text>
-              {'  '}3. <Text bold>bin/dev</Text>
-              <Text dimColor>  (start the dev server)</Text>
-            </Text>
-            <Text>
-              {'  '}4. Open <Text bold>https://app.local.factorial.dev:3000</Text>
+              {'  '}{config.agenticClis.length > 0 ? '3' : '2'}. Open <Text bold>https://app.local.factorial.dev</Text>
             </Text>
           </Box>
         </Box>
