@@ -1523,7 +1523,7 @@ export async function runAWSSSOLogin(): Promise<{ success: boolean; error?: stri
     { interactive: true }
   )
   if (result.code !== 0) {
-    return { success: false, error: 'AWS SSO login failed.' }
+    return { success: false, error: 'AWS SSO login failed. Please contact support or security teams asking for AWS SSO access.' }
   }
   // Verify it worked
   const verify = await sh(
