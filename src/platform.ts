@@ -255,6 +255,7 @@ const PACMAN_PACKAGE_MAP: Record<string, string | string[] | null> = {
   gpg: 'gnupg',
   composer: 'composer',
   yq: 'yq',
+  tmux: 'tmux',
   opencode: null,
   'claude-code': null,
   codex: null,

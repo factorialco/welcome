@@ -102,7 +102,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 1,
     icon: '▸',
     name: 'Install system packages',
-    description: 'Homebrew, Brewfile (30+ packages), direnv',
+    description: 'Homebrew, Brewfile (30+ packages), direnv, tmux',
     dependsOn: []
   },
   {
@@ -179,7 +179,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 12,
     icon: '▸',
     name: 'Setup development environment',
-    description: 'Install deps, docker-compose, DB setup',
+    description: 'Install deps, docker-compose, DB setup, tmuxinator',
     dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   },
   {

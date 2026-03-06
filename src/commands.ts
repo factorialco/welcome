@@ -286,6 +286,7 @@ const BASE_BREW_FORMULAE = [
   'gpg',
   'composer',
   'yq',
+  'tmux',
 ]
 
 const CLI_BREW_FORMULAE_MAP: Record<string, string> = {
@@ -1287,6 +1288,9 @@ export async function runStep12(
       `gem install mysql2 -- --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
       { cwd: path.join(REPO_PATH, 'backend') }
     )
+
+    // tmuxinator (terminal multiplexer session manager)
+    await sh('gem install tmuxinator')
 
     // Bundle config for native gem compilation
     if (isArm() || isLinux()) {
