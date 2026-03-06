@@ -7,18 +7,20 @@ import { StepContainer } from '../components/StepContainer.js'
 type IdentityField = 'fullName' | 'email'
 
 const FIELDS: { key: IdentityField; label: string; placeholder: string; icon: string }[] = [
-  { key: 'fullName', label: 'Full Name', placeholder: 'Jane Doe', icon: '👤' },
-  { key: 'email', label: 'Email', placeholder: 'jane@factorial.co', icon: '📧' }
+  { key: 'fullName', label: 'Full Name', placeholder: 'Jane Doe', icon: '>' },
+  { key: 'email', label: 'Email', placeholder: 'jane@factorial.co', icon: '>' }
 ]
 
 export function IdentityStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard()
+  const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } = useWizard()
   const [activeField, setActiveField] = useState(0)
 
   useInput((_input, key) => {
     if (key.escape) {
       if (activeField > 0) {
         setActiveField((f) => f - 1)
+      } else if (returnToStep !== null) {
+        completeReturn()
       } else {
         goBack()
       }
@@ -31,6 +33,8 @@ export function IdentityStep() {
     updateConfig({ [field.key]: value })
     if (activeField < FIELDS.length - 1) {
       setActiveField((f) => f + 1)
+    } else if (returnToStep !== null) {
+      completeReturn()
     } else {
       goNext()
     }
@@ -38,7 +42,7 @@ export function IdentityStep() {
 
   return (
     <StepContainer
-      title="🐙  Configure Git Identity"
+      title="Configure Git Identity"
       subtitle="We'll use this to configure git and generate your SSH keys."
     >
       <Box flexDirection="column" gap={1}>

@@ -127,7 +127,7 @@ export function AWSSetupStep() {
 
   return (
     <StepContainer
-      title="🔑  AWS Credentials Setup"
+      title="AWS Credentials Setup"
       subtitle="Authenticate with AWS SSO for the development profile."
     >
       {phase === 'checking' && (

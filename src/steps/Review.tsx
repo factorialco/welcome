@@ -6,7 +6,7 @@ import { Field, Divider } from '../components/UI.js'
 import { getPlatformLabel, getArch } from '../platform.js'
 
 export function ReviewStep() {
-  const { config, goNext, goBack, goToStep } = useWizard()
+  const { config, goNext, goBack, goToStepAndReturn } = useWizard()
   const [platformLabel, setPlatformLabel] = useState<string>('')
 
   useEffect(() => {
@@ -23,13 +23,13 @@ export function ReviewStep() {
     // Jump to config steps: 1=Identity, 2=Tools, 3=Services
     const num = parseInt(input)
     if (num >= 1 && num <= 3) {
-      goToStep(num)
+      goToStepAndReturn(num)
     }
   })
 
   return (
     <StepContainer
-      title="📋  Review Configuration"
+      title="Review Configuration"
       subtitle="Review your settings before we begin the installation."
     >
       <Box gap={4}>

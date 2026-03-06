@@ -100,91 +100,91 @@ export type SetupTask = {
 export const SETUP_TASKS: SetupTask[] = [
   {
     id: 1,
-    icon: '📦',
+    icon: '▸',
     name: 'Install system packages',
     description: 'Homebrew, Brewfile (30+ packages), direnv',
     dependsOn: []
   },
   {
     id: 2,
-    icon: '🐳',
+    icon: '▸',
     name: 'Setup Docker',
     description: 'Colima, container runtime, hello-world test',
     dependsOn: [1]
   },
   {
     id: 3,
-    icon: '🐙',
+    icon: '▸',
     name: 'Configure git identity',
     description: 'SSH keys, GitHub access, SSO authorization',
     dependsOn: [1]
   },
   {
     id: 4,
-    icon: '🧰',
+    icon: '▸',
     name: 'Clone Factorial repository',
     description: 'factorialco/factorial, git perf, direnv allow',
     dependsOn: [3]
   },
   {
     id: 5,
-    icon: '🔌',
+    icon: '▸',
     name: 'Setup version manager',
     description: 'Install language runtimes (Ruby, Node, Python)',
     dependsOn: [4]
   },
   {
     id: 6,
-    icon: '🔑',
+    icon: '▸',
     name: 'Configure AWS credentials',
     description: 'AWS SSO login, development profile',
     dependsOn: [4]
   },
   {
     id: 7,
-    icon: '🤫',
+    icon: '▸',
     name: 'Update secrets',
     description: 'Retrieve secrets from AWS Secrets Manager',
     dependsOn: [6]
   },
   {
     id: 8,
-    icon: '🔏',
+    icon: '▸',
     name: 'Setup local hosts file',
     description: 'Add 27 entries to /etc/hosts',
     dependsOn: [1]
   },
   {
     id: 9,
-    icon: '🔧',
+    icon: '▸',
     name: 'Install editor extensions',
     description: 'VS Code/Cursor extensions',
     dependsOn: [1]
   },
   {
     id: 10,
-    icon: '🌐',
+    icon: '▸',
     name: 'Configure Ngrok tunnel',
     description: 'Domain, authtoken, tunnel test',
     dependsOn: [4]
   },
   {
     id: 11,
-    icon: '🪪',
+    icon: '▸',
     name: 'Setup Cognito authentication',
     description: 'KMS, IAM, Lambda, User Pool provisioning',
     dependsOn: [4, 7, 10]
   },
   {
     id: 12,
-    icon: '💻',
+    icon: '▸',
     name: 'Setup development environment',
     description: 'Install deps, docker-compose, DB setup',
     dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   },
   {
     id: 13,
-    icon: '🤖',
+    icon: '▸',
     name: 'Install agent skills',
     description: 'npx skills add for 5 skill repos',
     dependsOn: [1]
@@ -213,6 +213,12 @@ type WizardContextType = {
   goNext: () => void
   goBack: () => void
   goToStep: (step: number) => void
+  /** Navigate to a step and return to the current step when done */
+  goToStepAndReturn: (step: number) => void
+  /** If set, goNext/goBack should return here instead of normal navigation */
+  returnToStep: number | null
+  /** Clear the return-to bookmark and jump back */
+  completeReturn: () => void
   totalSteps: number
 }
 
@@ -228,6 +234,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     return { ...DEFAULT_CONFIG, ...identity }
   })
   const [currentStep, setCurrentStep] = useState(0)
+  const [returnToStep, setReturnToStep] = useState<number | null>(null)
   const totalSteps = WIZARD_STEPS.length
 
   const updateConfig = (partial: Partial<SetupConfig>) => {
@@ -238,9 +245,24 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 0))
   const goToStep = (step: number) => setCurrentStep(step)
 
+  const goToStepAndReturn = (step: number) => {
+    setReturnToStep(currentStep)
+    setCurrentStep(step)
+  }
+
+  const completeReturn = () => {
+    if (returnToStep !== null) {
+      setCurrentStep(returnToStep)
+      setReturnToStep(null)
+    }
+  }
+
   return (
     <WizardContext.Provider
-      value={{ config, updateConfig, currentStep, goNext, goBack, goToStep, totalSteps }}
+      value={{
+        config, updateConfig, currentStep, goNext, goBack, goToStep,
+        goToStepAndReturn, returnToStep, completeReturn, totalSteps
+      }}
     >
       {children}
     </WizardContext.Provider>

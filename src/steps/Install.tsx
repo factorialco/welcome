@@ -232,7 +232,7 @@ export function InstallStep() {
     const isMac = isDarwin()
     return (
       <StepContainer
-        title="🔒  Administrator Access Required"
+        title="Administrator Access Required"
         subtitle="Some tasks need to modify system files (e.g., /etc/hosts)."
       >
         <Box flexDirection="column" gap={1}>
@@ -375,7 +375,7 @@ export function InstallStep() {
   // Show tasks grouped by status with dependency visualization
   return (
     <StepContainer
-      title="🚀  Installing..."
+      title="Installing..."
       subtitle={`Running ${tasks.length} tasks with parallel execution`}
     >
       <Box flexDirection="column" gap={0}>

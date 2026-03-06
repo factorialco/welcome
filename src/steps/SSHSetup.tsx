@@ -152,7 +152,7 @@ export function SSHSetupStep() {
 
   return (
     <StepContainer
-      title="🔑  SSH Key Setup"
+      title="SSH Key Setup"
       subtitle="Configure SSH access to GitHub for the Factorial organization."
     >
       {phase === 'checking' && (

@@ -31,10 +31,26 @@ const EDITOR_OPTIONS: { key: EditorChoice; label: string; hint: string }[] = [
 type Phase = 'version-manager' | 'agentic-clis' | 'editors'
 
 export function ToolsStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard()
+  const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } = useWizard()
   const [phase, setPhase] = useState<Phase>('version-manager')
   const [cliCursor, setCliCursor] = useState(0)
   const [editorCursor, setEditorCursor] = useState(0)
+
+  const finish = () => {
+    if (returnToStep !== null) {
+      completeReturn()
+    } else {
+      goNext()
+    }
+  }
+
+  const back = () => {
+    if (returnToStep !== null) {
+      completeReturn()
+    } else {
+      goBack()
+    }
+  }
 
   useInput((input, key) => {
     if (key.escape) {
@@ -43,7 +59,7 @@ export function ToolsStep() {
       } else if (phase === 'agentic-clis') {
         setPhase('version-manager')
       } else {
-        goBack()
+        back()
       }
       return
     }
@@ -86,7 +102,7 @@ export function ToolsStep() {
         }
       }
       if (key.return) {
-        goNext()
+        finish()
       }
     }
   })
@@ -110,7 +126,7 @@ export function ToolsStep() {
 
   return (
     <StepContainer
-      title="🔌  Development Tools"
+      title="Development Tools"
       subtitle="Choose your version manager, agentic CLIs, and code editors."
     >
       {/* Version Manager */}

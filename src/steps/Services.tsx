@@ -18,9 +18,25 @@ const NO_YES = [
 ]
 
 export function ServicesStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard()
+  const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } = useWizard()
   const [phase, setPhase] = useState<Phase>('ngrok')
   const [dbCursor, setDbCursor] = useState(0)
+
+  const finish = () => {
+    if (returnToStep !== null) {
+      completeReturn()
+    } else {
+      goNext()
+    }
+  }
+
+  const back = () => {
+    if (returnToStep !== null) {
+      completeReturn()
+    } else {
+      goBack()
+    }
+  }
 
   useInput((input, key) => {
     if (key.escape) {
@@ -35,7 +51,7 @@ export function ServicesStep() {
       } else if (phase === 'ngrok-domain') {
         setPhase('ngrok')
       } else {
-        goBack()
+        back()
       }
       return
     }
@@ -56,7 +72,7 @@ export function ServicesStep() {
         }
       }
       if (key.return) {
-        goNext()
+        finish()
       }
     }
   })
@@ -98,7 +114,7 @@ export function ServicesStep() {
 
   return (
     <StepContainer
-      title="🌐  Services & Infrastructure"
+      title="Services & Infrastructure"
       subtitle="Configure Ngrok tunneling, Cognito auth, and database options."
     >
       <Box flexDirection="column" gap={1}>
