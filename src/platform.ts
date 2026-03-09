@@ -217,6 +217,7 @@ const APT_PACKAGE_MAP: Record<string, string | string[] | null> = {
   gpg: 'gnupg',
   composer: 'composer',
   yq: null, // Installed via binary release
+  tmux: 'tmux',
   // Agentic CLIs
   opencode: null, // Installed via npm/binary
   'claude-code': null, // Installed via npm
