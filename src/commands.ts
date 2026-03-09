@@ -658,8 +658,8 @@ export async function runStep4(
     await mkdir(CODE_DIR, { recursive: true })
 
     // 1. Clone or pull
-    onProgress(0, 'Cloning factorialco/factorial... (this may take a while, patience!)')
     if (!(await dirExists(REPO_PATH))) {
+      onProgress(0, 'Cloning factorialco/factorial... (this may take a while, patience!)')
       const result = await sh(
         `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
         { interactive: true }
@@ -668,7 +668,7 @@ export async function runStep4(
         throw new Error('Failed to clone Factorial repository')
       }
     } else if (await dirExists(path.join(REPO_PATH, '.git'))) {
-      onProgress(0, 'Repository exists, pulling latest...')
+      onProgress(0, 'Repository already cloned, pulling latest...')
       await sh('git pull', { cwd: REPO_PATH })
     }
 
