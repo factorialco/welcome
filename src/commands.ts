@@ -79,6 +79,9 @@ const WEBPAGE_COUNTRIES = [
   'za'
 ]
 
+const SLOT_PREFIXES = ['app', 'api', 'ws', 'mastra']
+const NUM_SLOTS = 4
+
 const EXTENSIONS = [
   'bradlc.vscode-tailwindcss',
   'christian-kohler.npm-intellisense',
@@ -897,6 +900,43 @@ export async function runStep8(
         })
         if (result.code !== 0) throw new Error('Failed to update /etc/hosts')
       }
+    }
+
+    // 4. Slot-based hosts for multi-worktree development
+    onProgress(3, 'Checking slot host entries...')
+    const slotLines: string[] = []
+    for (let slot = 1; slot <= NUM_SLOTS; slot++) {
+      slotLines.push(
+        `127.0.0.1 ${SLOT_PREFIXES.map((p) => `${p}-slot${slot}.${LOCAL_DOMAIN}`).join(' ')}`
+      )
+    }
+
+    const anySlotMissing = slotLines.some((line) => {
+      const firstHost = line.split(' ')[1]!
+      const regex = new RegExp(`^[^#]*\\s${firstHost.replace(/\./g, '\\.')}(\\s|$)`, 'm')
+      return !regex.test(hostsContent)
+    })
+
+    if (anySlotMissing) {
+      onProgress(4, `Adding ${NUM_SLOTS} slot entries to /etc/hosts...`)
+      const slotBlock = [
+        '',
+        '# Factorial local dev slots (multi-worktree)',
+        ...slotLines,
+        '# Need more slots? Add a new line following the pattern above.'
+      ].join('\n')
+
+      if (isDarwin()) {
+        const result = await sudoSh(`echo '${slotBlock}' >> /etc/hosts`)
+        if (result.code !== 0) throw new Error('Failed to update /etc/hosts with slot entries')
+      } else {
+        const result = await sh(`echo '${slotBlock}' | sudo tee -a /etc/hosts >/dev/null`, {
+          interactive: true
+        })
+        if (result.code !== 0) throw new Error('Failed to update /etc/hosts with slot entries')
+      }
+    } else {
+      onProgress(4, 'All slot host entries already present.')
     }
 
     return { success: true, duration: Date.now() - start }

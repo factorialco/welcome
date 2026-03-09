@@ -254,6 +254,10 @@ export function AWSSetupStep() {
             <Text bold>{'✗ '}</Text>
             {errorMsg}
           </Text>
+          <Text dimColor>
+            If the error persists, ensure you have AWS access or request it
+            in <Text bold>"Application Access Request"</Text> in IT Support.
+          </Text>
           <Divider />
           <Box gap={2}>
             <Text>

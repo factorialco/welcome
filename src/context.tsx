@@ -151,7 +151,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 8,
     icon: '▸',
     name: 'Setup local hosts file',
-    description: 'Add 27 entries to /etc/hosts',
+    description: 'Add 27 + 16 slot entries to /etc/hosts',
     dependsOn: [1]
   },
   {
