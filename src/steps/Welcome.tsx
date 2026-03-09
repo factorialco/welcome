@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Box, Text, useInput } from 'ink'
 import Spinner from 'ink-spinner'
 import { useWizard, SETUP_TASKS, BRAND_COLOR } from '../context.js'
+import { runPreflightChecks, type PreflightResult } from '../commands.js'
 
 // Factorial ASCII logo (simplified block art matching the script's style)
 const FACTORIAL_LOGO = [
@@ -13,18 +14,45 @@ const FACTORIAL_LOGO = [
   '  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝'
 ]
 
+const STATUS_ICON: Record<PreflightResult['status'], { char: string; color: string }> = {
+  ok: { char: '✓', color: 'green' },
+  warn: { char: '!', color: 'yellow' },
+  fail: { char: '✗', color: 'red' }
+}
+
+const TOTAL_CHECKS = 4
+
 export function WelcomeStep() {
   const { goNext } = useWizard()
-  const [showContinue, setShowContinue] = useState(false)
+  const [results, setResults] = useState<PreflightResult[]>([])
+  const [done, setDone] = useState(false)
+  const [hasBlocker, setHasBlocker] = useState(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowContinue(true), 1200)
-    return () => clearTimeout(timer)
+  const runChecks = useCallback(() => {
+    setResults([])
+    setDone(false)
+    setHasBlocker(false)
+
+    runPreflightChecks((result, _index) => {
+      setResults((prev) => [...prev, result])
+    }).then((allResults) => {
+      setDone(true)
+      setHasBlocker(allResults.some((r) => r.status === 'fail'))
+    })
   }, [])
 
+  useEffect(() => {
+    runChecks()
+  }, [runChecks])
+
   useInput((_input, key) => {
-    if (key.return && showContinue) {
-      goNext()
+    if (key.return && done) {
+      if (hasBlocker) {
+        // Retry checks
+        runChecks()
+      } else {
+        goNext()
+      }
     }
   })
 
@@ -81,8 +109,29 @@ export function WelcomeStep() {
         </Box>
       </Box>
 
+      {/* Pre-flight checks */}
+      <Box marginTop={1} flexDirection="column" marginLeft={2}>
+        {results.map((r, i) => {
+          const icon = STATUS_ICON[r.status]
+          return (
+            <Text key={i}>
+              <Text color={icon.color} bold>{icon.char} </Text>
+              <Text>{r.name}: </Text>
+              <Text dimColor>{r.message}</Text>
+            </Text>
+          )
+        })}
+        {!done && results.length < TOTAL_CHECKS && (
+          <Text color={BRAND_COLOR}>
+            <Spinner type="dots" />{' '}
+            <Text> Checking system requirements...</Text>
+          </Text>
+        )}
+      </Box>
+
+      {/* Action prompt */}
       <Box marginTop={1} justifyContent="center">
-        {showContinue ? (
+        {done && !hasBlocker && (
           <Text>
             Press{' '}
             <Text color={BRAND_COLOR} bold>
@@ -90,9 +139,12 @@ export function WelcomeStep() {
             </Text>{' '}
             to begin setup
           </Text>
-        ) : (
-          <Text color={BRAND_COLOR}>
-            <Spinner type="dots" /> <Text> Initializing...</Text>
+        )}
+        {done && hasBlocker && (
+          <Text color="red">
+            Fix the issue above, then press{' '}
+            <Text bold>Enter</Text>{' '}
+            to retry
           </Text>
         )}
       </Box>
