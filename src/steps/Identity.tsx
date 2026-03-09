@@ -14,6 +14,7 @@ const FIELDS: { key: IdentityField; label: string; placeholder: string; icon: st
 export function IdentityStep() {
   const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } = useWizard()
   const [activeField, setActiveField] = useState(0)
+  const [error, setError] = useState('')
 
   useInput((_input, key) => {
     if (key.escape) {
@@ -30,7 +31,19 @@ export function IdentityStep() {
   const handleSubmit = (value: string) => {
     const field = FIELDS[activeField]
     if (!field) return
-    updateConfig({ [field.key]: value })
+
+    const trimmed = value.trim()
+    if (field.key === 'fullName' && trimmed.length === 0) {
+      setError('Name cannot be empty')
+      return
+    }
+    if (field.key === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    setError('')
+    updateConfig({ [field.key]: trimmed })
     if (activeField < FIELDS.length - 1) {
       setActiveField((f) => f + 1)
     } else if (returnToStep !== null) {
@@ -63,15 +76,23 @@ export function IdentityStep() {
               </Box>
 
               {isActive && (
-                <Box marginLeft={4}>
-                  <Text color={BRAND_COLOR}>{'  > '}</Text>
-                  <TextInput
-                    value={value}
-                    onChange={(v) => updateConfig({ [field.key]: v })}
-                    onSubmit={handleSubmit}
-                    placeholder={field.placeholder}
-                    focus={true}
-                  />
+                <Box marginLeft={4} flexDirection="column">
+                  <Box>
+                    <Text color={BRAND_COLOR}>{'  > '}</Text>
+                    <TextInput
+                      value={value}
+                      onChange={(v) => {
+                        setError('')
+                        updateConfig({ [field.key]: v })
+                      }}
+                      onSubmit={handleSubmit}
+                      placeholder={field.placeholder}
+                      focus={true}
+                    />
+                  </Box>
+                  {error && (
+                    <Text color="red">{'      '}{error}</Text>
+                  )}
                 </Box>
               )}
 
