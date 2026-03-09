@@ -3,7 +3,6 @@ import { execSync } from 'node:child_process'
 
 // ── Brand ──────────────────────────────────────────────
 export const BRAND_COLOR = '#ff365f'
-export const BRAND_HEX = '#ff365f'
 
 // ── Config types matching welcome.sh user prompts ──────
 export type VersionManager = 'mise' | 'asdf'

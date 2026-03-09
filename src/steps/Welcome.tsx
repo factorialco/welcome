@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
-import Gradient from 'ink-gradient'
-import BigText from 'ink-big-text'
 import Spinner from 'ink-spinner'
 import { useWizard, SETUP_TASKS, BRAND_COLOR } from '../context.js'
 
