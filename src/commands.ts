@@ -113,6 +113,12 @@ const SKILL_REPOS = [
 ]
 
 // ── Types ───────────────────────────────────────────────
+
+/** Escape a string for safe interpolation into a shell command */
+function shellEscape(s: string): string {
+  return "'" + s.replace(/'/g, "'\\''") + "'"
+}
+
 export type ProgressCallback = (subtaskIndex: number, detail: string) => void
 export type TaskResult = { success: boolean; error?: string; duration: number }
 
@@ -618,10 +624,10 @@ export async function runStep3(
     // Set git identity
     onProgress(0, 'Configuring git identity...')
     if (config.fullName) {
-      await sh(`git config --global user.name "${config.fullName}"`)
+      await sh(`git config --global user.name ${shellEscape(config.fullName)}`)
     }
     if (config.email) {
-      await sh(`git config --global user.email "${config.email}"`)
+      await sh(`git config --global user.email ${shellEscape(config.email)}`)
     }
 
     // SSH was already set up in the SSHSetup wizard step.
@@ -1025,7 +1031,7 @@ export async function runStep10(
     // 2. Set authtoken
     onProgress(1, 'Setting authtoken...')
     if (config.ngrokAuthtoken) {
-      await sh(`ngrok config add-authtoken "${config.ngrokAuthtoken}"`)
+      await sh(`ngrok config add-authtoken ${shellEscape(config.ngrokAuthtoken)}`)
       await addOrUpdateEnvVar('TUNNEL_AUTH_TOKEN', config.ngrokAuthtoken, PERSONAL_ENV_RC_PATH)
     }
 
@@ -1039,7 +1045,7 @@ export async function runStep10(
 
       // Quick tunnel test
       const testResult = await sh(
-        `ngrok http --url=${config.ngrokDomain} 9999 --log=stdout --log-format=logfmt --authtoken=${config.ngrokAuthtoken} &
+        `ngrok http --url=${shellEscape(config.ngrokDomain)} 9999 --log=stdout --log-format=logfmt --authtoken=${shellEscape(config.ngrokAuthtoken)} &
         NGROK_PID=$!
         sleep 3
         kill $NGROK_PID 2>/dev/null
@@ -1498,7 +1504,7 @@ export async function generateSSHKey(email: string): Promise<{ keyPath: string; 
   const keyName = `id_ed25519_factorial_${Math.floor(Date.now() / 1000)}`
   const keyFile = path.join(SSH_DIR, keyName)
 
-  await sh(`ssh-keygen -t ed25519 -C "${email}" -f "${keyFile}" -N ""`)
+  await sh(`ssh-keygen -t ed25519 -C ${shellEscape(email)} -f ${shellEscape(keyFile)} -N ""`)
 
   // Configure SSH config
   const sshConfigFile = path.join(SSH_DIR, 'config')
