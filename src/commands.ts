@@ -659,7 +659,7 @@ export async function runStep4(
 
     // 1. Clone or pull
     if (!(await dirExists(REPO_PATH))) {
-      onProgress(0, 'Cloning factorialco/factorial... (this may take a while, patience!)')
+      onProgress(0, `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`)
       const result = await sh(
         `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
         { interactive: true }
