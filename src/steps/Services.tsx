@@ -181,6 +181,7 @@ export function ServicesStep() {
                 onChange={(v) => updateConfig({ ngrokAuthtoken: v })}
                 onSubmit={handleNgrokToken}
                 placeholder="2abc123..."
+                mask="*"
                 focus={true}
               />
             </Box>
