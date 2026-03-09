@@ -256,7 +256,10 @@ export function AWSSetupStep() {
           </Text>
           <Text dimColor>
             If the error persists, ensure you have AWS access or request it
-            in <Text bold>"Application Access Request"</Text> in IT Support.
+            in <Text bold>"Application Access Request"</Text> in IT Support:
+          </Text>
+          <Text dimColor>
+            https://portal.support.factorialhr.com/servicedesk/customer/portal/247
           </Text>
           <Divider />
           <Box gap={2}>
