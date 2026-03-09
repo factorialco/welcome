@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
 import { execSync } from 'node:child_process'
+import { readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs'
+import { homedir } from 'node:os'
+import path from 'node:path'
 
 // ── Brand ──────────────────────────────────────────────
 export const BRAND_COLOR = '#ff365f'
@@ -71,6 +74,51 @@ export const DEFAULT_CONFIG: SetupConfig = {
   setupCognito: false,
   branchSpecificDb: false,
   restoreDb: true
+}
+
+// ── Config persistence ─────────────────────────────────
+const CONFIG_DIR = path.join(homedir(), '.factorial')
+const CONFIG_FILE = path.join(CONFIG_DIR, 'welcome-config.json')
+
+type SavedState = {
+  config: SetupConfig
+  currentStep: number
+  savedAt: string
+}
+
+/** Load previously saved wizard state, or null if none exists */
+export function loadSavedConfig(): SavedState | null {
+  try {
+    const raw = readFileSync(CONFIG_FILE, 'utf-8')
+    const parsed = JSON.parse(raw) as SavedState
+    // Basic validation: must have config and currentStep
+    if (parsed && typeof parsed.currentStep === 'number' && parsed.config) {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Save wizard state to disk */
+function saveConfigToDisk(config: SetupConfig, currentStep: number): void {
+  try {
+    mkdirSync(CONFIG_DIR, { recursive: true })
+    const state: SavedState = { config, currentStep, savedAt: new Date().toISOString() }
+    writeFileSync(CONFIG_FILE, JSON.stringify(state, null, 2) + '\n')
+  } catch {
+    // Non-fatal: silently ignore write errors
+  }
+}
+
+/** Delete saved wizard state */
+export function clearSavedConfig(): void {
+  try {
+    unlinkSync(CONFIG_FILE)
+  } catch {
+    // File may not exist — that's fine
+  }
 }
 
 function getIdentityFromSystem(): { fullName: string; email: string } {
@@ -219,6 +267,10 @@ type WizardContextType = {
   /** Clear the return-to bookmark and jump back */
   completeReturn: () => void
   totalSteps: number
+  /** Restore a previously saved session */
+  restoreSession: (saved: SavedState) => void
+  /** Clear saved config file from disk */
+  clearSavedConfig: () => void
 }
 
 const WizardContext = createContext<WizardContextType>(null!)
@@ -235,6 +287,27 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [returnToStep, setReturnToStep] = useState<number | null>(null)
   const totalSteps = WIZARD_STEPS.length
+
+  // Debounced auto-save: persist config + step to disk whenever they change
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const configRef = useRef(config)
+  const stepRef = useRef(currentStep)
+  configRef.current = config
+  stepRef.current = currentStep
+
+  useEffect(() => {
+    // Don't save while on Welcome screen (step 0) — nothing to resume yet
+    if (currentStep === 0) return
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveConfigToDisk(configRef.current, stepRef.current)
+    }, 100)
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [config, currentStep])
 
   const updateConfig = (partial: Partial<SetupConfig>) => {
     setConfig((prev) => ({ ...prev, ...partial }))
@@ -256,11 +329,17 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const restoreSession = (saved: SavedState) => {
+    setConfig(saved.config)
+    setCurrentStep(saved.currentStep)
+  }
+
   return (
     <WizardContext.Provider
       value={{
         config, updateConfig, currentStep, goNext, goBack, goToStep,
-        goToStepAndReturn, returnToStep, completeReturn, totalSteps
+        goToStepAndReturn, returnToStep, completeReturn, totalSteps,
+        restoreSession, clearSavedConfig
       }}
     >
       {children}

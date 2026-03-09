@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink'
 import Spinner from 'ink-spinner'
 import Gradient from 'ink-gradient'
 import BigText from 'ink-big-text'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, editorChoiceLabel, type SetupConfig } from '../context.js'
+import { useWizard, SETUP_TASKS, BRAND_COLOR, editorChoiceLabel, clearSavedConfig, type SetupConfig } from '../context.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { ProgressBar } from '../components/UI.js'
 import { TASK_RUNNERS, warmupSudo, type ProgressCallback, type TaskResult } from '../commands.js'
@@ -210,6 +210,10 @@ export function InstallStep() {
     if (allDone) {
       setTotalDuration(Date.now() - startTime)
       setFinished(true)
+      // Clear saved config if all tasks succeeded (no failures)
+      if (!tasks.some((t) => t.status === 'failed')) {
+        clearSavedConfig()
+      }
       return
     }
 
