@@ -65,7 +65,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 4:
       return [
-        'Cloning factorialco/factorial (patience!)...',
+        'Cloning factorialco/factorial...',
         'Configuring git fsmonitor...',
         'Configuring git untrackedCache...',
         'Running direnv allow...'
