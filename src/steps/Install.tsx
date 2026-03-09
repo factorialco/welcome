@@ -503,10 +503,10 @@ export function InstallStep() {
               </Text>
               {task.status === 'running' &&
                 task.currentSubtask !== undefined &&
-                task.subtasks[task.currentSubtask] && (
+                task.detail && (
                   <Text dimColor>
                     {'    '}
-                    {task.subtasks[task.currentSubtask]}{' '}
+                    {task.detail}{' '}
                     <Text color="gray">
                       ({task.currentSubtask + 1}/{task.subtasks.length})
                     </Text>
