@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import Spinner from 'ink-spinner'
 import { useWizard, SETUP_TASKS, BRAND_COLOR, WIZARD_STEPS, loadSavedConfig, clearSavedConfig } from '../context.js'
-import { runPreflightChecks, type PreflightResult } from '../commands.js'
+import type { PreflightResult } from '../commands.js'
 
 // Factorial ASCII logo (simplified block art matching the script's style)
 const FACTORIAL_LOGO = [
@@ -20,15 +20,10 @@ const STATUS_ICON: Record<PreflightResult['status'], { char: string; color: stri
   fail: { char: '✗', color: 'red' }
 }
 
-const TOTAL_CHECKS = 4
-
 type ResumeState = 'checking' | 'prompt' | 'dismissed'
 
 export function WelcomeStep() {
-  const { goNext, restoreSession } = useWizard()
-  const [results, setResults] = useState<PreflightResult[]>([])
-  const [done, setDone] = useState(false)
-  const [hasBlocker, setHasBlocker] = useState(false)
+  const { goNext, restoreSession, runPreflight, preflightResults, preflightDone, preflightHasBlocker } = useWizard()
 
   // Resume state
   const [resumeState, setResumeState] = useState<ResumeState>('checking')
@@ -42,38 +37,23 @@ export function WelcomeStep() {
     }
   }, [savedSession])
 
-  const runChecks = useCallback(() => {
-    setResults([])
-    setDone(false)
-    setHasBlocker(false)
-
-    runPreflightChecks((result, _index) => {
-      setResults((prev) => [...prev, result])
-    }).then((allResults) => {
-      setDone(true)
-      setHasBlocker(allResults.some((r) => r.status === 'fail'))
-    })
-  }, [])
-
+  // Trigger pre-flight checks once resume prompt is resolved
   useEffect(() => {
-    // Only run checks once resume prompt is resolved
     if (resumeState === 'dismissed') {
-      runChecks()
+      runPreflight()
     }
-  }, [resumeState, runChecks])
+  }, [resumeState, runPreflight])
 
   useInput((input, key) => {
     // Handle resume prompt
     if (resumeState === 'prompt') {
       if (input === 'y' || input === 'Y' || key.return) {
-        // Restore session
         if (savedSession) {
           restoreSession(savedSession)
         }
         return
       }
       if (input === 'n' || input === 'N' || key.escape) {
-        // Start fresh
         clearSavedConfig()
         setResumeState('dismissed')
         return
@@ -82,9 +62,9 @@ export function WelcomeStep() {
     }
 
     // Handle pre-flight results
-    if (key.return && done) {
-      if (hasBlocker) {
-        runChecks()
+    if (key.return && preflightDone) {
+      if (preflightHasBlocker) {
+        runPreflight()
       } else {
         goNext()
       }
@@ -171,32 +151,31 @@ export function WelcomeStep() {
         </Box>
       )}
 
-      {/* Pre-flight checks */}
+      {/* System checks — horizontal row */}
       {resumeState === 'dismissed' && (
-        <Box marginTop={1} flexDirection="column" marginLeft={2}>
-          {results.map((r, i) => {
+        <Box marginTop={1} justifyContent="center" gap={2}>
+          <Text dimColor bold>System checks</Text>
+          {preflightResults.map((r, i) => {
             const icon = STATUS_ICON[r.status]
             return (
               <Text key={i}>
-                <Text color={icon.color} bold>{icon.char} </Text>
-                <Text>{r.name}: </Text>
-                <Text dimColor>{r.message}</Text>
+                <Text color={icon.color}>{icon.char}</Text>
+                <Text dimColor={r.status === 'ok'}>{' '}{r.name}</Text>
               </Text>
             )
           })}
-          {!done && results.length < TOTAL_CHECKS && (
+          {!preflightDone && (
             <Text color={BRAND_COLOR}>
-              <Spinner type="dots" />{' '}
-              <Text> Checking system requirements...</Text>
+              <Spinner type="dots" />
             </Text>
           )}
         </Box>
       )}
 
       {/* Action prompt */}
-      {resumeState === 'dismissed' && (
+      {resumeState === 'dismissed' && preflightDone && (
         <Box marginTop={1} justifyContent="center">
-          {done && !hasBlocker && (
+          {!preflightHasBlocker && (
             <Text>
               Press{' '}
               <Text color={BRAND_COLOR} bold>
@@ -205,7 +184,7 @@ export function WelcomeStep() {
               to begin setup
             </Text>
           )}
-          {done && hasBlocker && (
+          {preflightHasBlocker && (
             <Text color="red">
               Fix the issue above, then press{' '}
               <Text bold>Enter</Text>{' '}

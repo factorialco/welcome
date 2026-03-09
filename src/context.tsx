@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import { runPreflightChecks, type PreflightResult } from './commands.js'
 
 // ── Brand ──────────────────────────────────────────────
 export const BRAND_COLOR = '#ff365f'
@@ -271,6 +272,12 @@ type WizardContextType = {
   restoreSession: (saved: SavedState) => void
   /** Clear saved config file from disk */
   clearSavedConfig: () => void
+  // Pre-flight checks
+  preflightResults: PreflightResult[]
+  preflightDone: boolean
+  preflightHasBlocker: boolean
+  /** (Re)run pre-flight checks */
+  runPreflight: () => void
 }
 
 const WizardContext = createContext<WizardContextType>(null!)
@@ -287,6 +294,24 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [returnToStep, setReturnToStep] = useState<number | null>(null)
   const totalSteps = WIZARD_STEPS.length
+
+  // Pre-flight checks state
+  const [preflightResults, setPreflightResults] = useState<PreflightResult[]>([])
+  const [preflightDone, setPreflightDone] = useState(false)
+  const [preflightHasBlocker, setPreflightHasBlocker] = useState(false)
+
+  const runPreflight = useCallback(() => {
+    setPreflightResults([])
+    setPreflightDone(false)
+    setPreflightHasBlocker(false)
+
+    runPreflightChecks((result) => {
+      setPreflightResults((prev) => [...prev, result])
+    }).then((allResults) => {
+      setPreflightDone(true)
+      setPreflightHasBlocker(allResults.some((r) => r.status === 'fail'))
+    })
+  }, [])
 
   // Debounced auto-save: persist config + step to disk whenever they change
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -339,7 +364,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       value={{
         config, updateConfig, currentStep, goNext, goBack, goToStep,
         goToStepAndReturn, returnToStep, completeReturn, totalSteps,
-        restoreSession, clearSavedConfig
+        restoreSession, clearSavedConfig,
+        preflightResults, preflightDone, preflightHasBlocker, runPreflight
       }}
     >
       {children}
