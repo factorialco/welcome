@@ -65,6 +65,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 4:
       return [
+        'Verifying SSH access to GitHub...',
         'Cloning factorialco/factorial...',
         'Configuring git fsmonitor...',
         'Configuring git untrackedCache...',

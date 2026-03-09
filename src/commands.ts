@@ -657,9 +657,18 @@ export async function runStep4(
   try {
     await mkdir(CODE_DIR, { recursive: true })
 
+    // 0. Verify SSH connectivity before any git-over-SSH operation
+    onProgress(0, 'Verifying SSH access to GitHub...')
+    const sshOk = await checkGitHubConnectivity()
+    if (!sshOk) {
+      throw new Error(
+        'SSH authentication to GitHub failed. Ensure your SSH key is loaded in the agent (ssh-add) and has access to factorialco/factorial.'
+      )
+    }
+
     // 1. Clone or pull
     if (!(await dirExists(REPO_PATH))) {
-      onProgress(0, `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`)
+      onProgress(1, `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`)
       const result = await sh(
         `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
         { interactive: true }
@@ -668,20 +677,20 @@ export async function runStep4(
         throw new Error('Failed to clone Factorial repository')
       }
     } else if (await dirExists(path.join(REPO_PATH, '.git'))) {
-      onProgress(0, 'Repository already cloned, pulling latest...')
+      onProgress(1, 'Repository already cloned, pulling latest...')
       await sh('git pull', { cwd: REPO_PATH })
     }
 
     // 2. Git perf settings
-    onProgress(1, 'Configuring git fsmonitor...')
+    onProgress(2, 'Configuring git fsmonitor...')
     await sh(`git -C "${REPO_PATH}" config core.filemode false`)
     await sh(`git -C "${REPO_PATH}" config core.untrackedCache true`)
 
-    onProgress(2, 'Configuring git untrackedCache...')
+    onProgress(3, 'Configuring git untrackedCache...')
     await sh(`git -C "${REPO_PATH}" config core.fsmonitor true`)
 
     // 3. direnv allow
-    onProgress(3, 'Running direnv allow...')
+    onProgress(4, 'Running direnv allow...')
     await sh('find . -maxdepth 2 -name .envrc -execdir direnv allow \\;', { cwd: REPO_PATH })
 
     // 4. Branch-specific DB hook (optional)
