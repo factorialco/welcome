@@ -142,7 +142,16 @@ function canStart(taskId: number, tasks: TaskState[]): boolean {
   if (!task) return false
   return task.dependsOn.every((depId) => {
     const dep = tasks.find((t) => t.id === depId)
-    return dep && (dep.status === 'done' || dep.status === 'skipped')
+    return dep && (dep.status === 'done' || dep.status === 'skipped' || dep.status === 'failed')
+  })
+}
+
+function hasFailedDependency(taskId: number, tasks: TaskState[]): boolean {
+  const task = SETUP_TASKS.find((t) => t.id === taskId)
+  if (!task) return false
+  return task.dependsOn.some((depId) => {
+    const dep = tasks.find((t) => t.id === depId)
+    return dep && dep.status === 'failed'
   })
 }
 
@@ -192,6 +201,18 @@ export function InstallStep() {
     // Start all runnable tasks (parallel execution where dependencies allow)
     for (const task of runnableTasks) {
       startedRef.current.add(task.id)
+
+      // If a dependency failed, cascade the failure instead of running the task
+      if (hasFailedDependency(task.id, tasks)) {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === task.id
+              ? { ...t, status: 'failed', error: 'Dependency failed', currentSubtask: undefined }
+              : t
+          )
+        )
+        continue
+      }
 
       // Mark as running
       setTasks((prev) =>
