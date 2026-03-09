@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Text, useApp } from 'ink'
+import { Box, Text, useApp, useInput } from 'ink'
 import Spinner from 'ink-spinner'
 import Gradient from 'ink-gradient'
 import BigText from 'ink-big-text'
@@ -172,6 +172,28 @@ export function InstallStep() {
     (t) => t.status === 'done' || t.status === 'skipped' || t.status === 'failed'
   )
   const percent = Math.round((doneTasks.length / tasks.length) * 100)
+
+  // Handle keyboard input on the completion screen
+  useInput((input, key) => {
+    if (!finished) return
+    const hasFailures = tasks.some((t) => t.status === 'failed')
+    if ((input === 'r' || input === 'R') && hasFailures) {
+      // Reset all failed tasks back to pending and re-run them
+      const failedIds = new Set(tasks.filter((t) => t.status === 'failed').map((t) => t.id))
+      failedIds.forEach((id) => startedRef.current.delete(id))
+      setTasks((prev) =>
+        prev.map((t) =>
+          failedIds.has(t.id)
+            ? { ...t, status: 'pending', error: undefined, duration: undefined }
+            : t
+        )
+      )
+      setFinished(false)
+    }
+    if (key.return) {
+      exit()
+    }
+  })
 
   // Warm up sudo credentials before starting parallel tasks
   useEffect(() => {
@@ -386,7 +408,17 @@ export function InstallStep() {
 
         <Box marginTop={1}>
           <Text dimColor>
-            Happy coding! Press <Text color="gray">Ctrl+C</Text> to exit.
+            {failedCount > 0 ? (
+              <>
+                Press <Text color="gray">r</Text> to retry failed tasks{' '}
+                <Text color="gray">|</Text>{' '}
+                <Text color="gray">Enter</Text> to exit
+              </>
+            ) : (
+              <>
+                Happy coding! Press <Text color="gray">Enter</Text> to exit.
+              </>
+            )}
           </Text>
         </Box>
       </Box>
