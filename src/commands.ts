@@ -299,12 +299,12 @@ const BASE_BREW_FORMULAE = [
 ]
 
 const CLI_BREW_FORMULAE_MAP: Record<string, string> = {
-  opencode: 'opencode',
-  codex: 'codex'
+  opencode: 'opencode'
 }
 
 const CLI_BREW_CASK_MAP: Record<string, string> = {
-  claude: 'claude-code'
+  claude: 'claude-code',
+  codex: 'codex'
 }
 
 const EDITOR_CASK_MAP: Record<string, string> = {
