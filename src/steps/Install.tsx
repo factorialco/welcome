@@ -406,7 +406,11 @@ export function InstallStep() {
               </Text>
             )}
             <Text>
-              {'  '}{config.agenticClis.length > 0 ? '3' : '2'}. Open <Text bold>https://app.local.factorial.dev</Text>
+              {'  '}{config.agenticClis.length > 0 ? '3' : '2'}. <Text bold>.local-dev/quickstart.sh</Text>
+              <Text dimColor>  (quick start the application)</Text>
+            </Text>
+            <Text>
+              {'  '}{config.agenticClis.length > 0 ? '4' : '3'}. Open <Text bold>https://app.local.factorial.dev</Text>
             </Text>
           </Box>
         </Box>
