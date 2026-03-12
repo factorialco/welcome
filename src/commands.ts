@@ -442,11 +442,12 @@ export async function runStep1(
       const smpArch = osArch() === 'arm64' ? 'mac_arm64' : 'mac'
       await sh(
         `curl -fsSL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/${smpArch}/sessionmanager-bundle.zip" -o /tmp/sessionmanager-bundle.zip && ` +
-        `unzip -o /tmp/sessionmanager-bundle.zip -d /tmp && ` +
-        `sudo /tmp/sessionmanager-bundle/install -i /usr/local/sessionmanagerplugin -b /usr/local/bin/session-manager-plugin && ` +
-        `rm -rf /tmp/sessionmanager-bundle.zip /tmp/sessionmanager-bundle`,
-        { interactive: true }
+        `unzip -o /tmp/sessionmanager-bundle.zip -d /tmp`
       )
+      await sudoSh(
+        `/tmp/sessionmanager-bundle/install -i /usr/local/sessionmanagerplugin -b /usr/local/bin/session-manager-plugin`
+      )
+      await sh(`rm -rf /tmp/sessionmanager-bundle.zip /tmp/sessionmanager-bundle`)
     } else {
       // ── Linux: native package manager path ──
       // Add build prerequisites that macOS gets from Xcode Command Line Tools
