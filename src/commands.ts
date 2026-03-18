@@ -541,8 +541,30 @@ export async function runStep2(
         { interactive: true }
       )
 
+      // Ensure Docker CLI can find Homebrew-installed plugins (e.g. docker-compose)
+      onProgress(2, 'Configuring Docker CLI plugins path...')
+      const dockerConfigDir = path.join(HOME, '.docker')
+      const dockerConfigPath = path.join(dockerConfigDir, 'config.json')
+      const brewPluginsDir = '/opt/homebrew/lib/docker/cli-plugins'
+      await mkdir(dockerConfigDir, { recursive: true })
+      let dockerConfig: Record<string, any> = {}
+      if (await fileExists(dockerConfigPath)) {
+        try {
+          dockerConfig = JSON.parse(await readFile(dockerConfigPath, 'utf-8'))
+        } catch {
+          // If the file is malformed, start fresh
+          dockerConfig = {}
+        }
+      }
+      const extraDirs: string[] = dockerConfig.cliPluginsExtraDirs ?? []
+      if (!extraDirs.includes(brewPluginsDir)) {
+        extraDirs.push(brewPluginsDir)
+        dockerConfig.cliPluginsExtraDirs = extraDirs
+        await writeFile(dockerConfigPath, JSON.stringify(dockerConfig, null, 2) + '\n')
+      }
+
       // Detect architecture and configure
-      onProgress(2, 'Detecting architecture and configuring Colima...')
+      onProgress(3, 'Detecting architecture and configuring Colima...')
       const armArch = isArm()
       const macosVer = (await sh(getOsVersionCommand())).stdout
       const macosGe13 = parseInt(macosVer) >= 13
@@ -556,14 +578,14 @@ export async function runStep2(
       const colimaMemory = totalRamGb > 40 ? 8 : 2
 
       // Write colima.yaml
-      onProgress(3, 'Writing Colima configuration...')
+      onProgress(4, 'Writing Colima configuration...')
       const colimaConfigDir = path.join(HOME, '.colima', 'default')
       await mkdir(colimaConfigDir, { recursive: true })
       const colimaConfig = `cpu: ${colimaCpu}\nmemory: ${colimaMemory}\ndisk: 100\narch: ${colimaArch}\nruntime: docker\nvmType: ${vmType}\nmountType: ${mountType}\nmounts: []\nkubernetes:\n  enabled: false\n`
       await writeFile(path.join(colimaConfigDir, 'colima.yaml'), colimaConfig)
 
       // Start Colima
-      onProgress(4, 'Starting Colima...')
+      onProgress(5, 'Starting Colima...')
       await sh('colima status 2>&1 | grep -q "colima is running" && colima stop || true')
       await sh('colima start', { interactive: true })
       const serviceCommands = await getDockerServiceCommands()
@@ -607,7 +629,7 @@ export async function runStep2(
     }
 
     // Test (cross-platform)
-    onProgress(5, 'Testing docker with hello-world...')
+    onProgress(6, 'Testing docker with hello-world...')
     const dockerTest = await sh('docker run --rm hello-world')
     if (dockerTest.code !== 0) {
       // On Linux, the user may need to re-login for group changes
