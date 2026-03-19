@@ -218,6 +218,7 @@ const APT_PACKAGE_MAP: Record<string, string | string[] | null> = {
   composer: 'composer',
   yq: null, // Installed via binary release
   tmux: 'tmux',
+  bun: null, // Installed via official install script
   // Agentic CLIs
   opencode: null, // Installed via npm/binary
   'claude-code': null, // Installed via npm
@@ -301,6 +302,9 @@ const SPECIAL_INSTALL_COMMANDS_APT: Record<string, string[]> = {
   yq: [
     'YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | jq -r .tag_name) && sudo curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_$(dpkg --print-architecture)" -o /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq',
   ],
+  bun: [
+    'curl -fsSL https://bun.sh/install | bash',
+  ],
 }
 
 const SPECIAL_INSTALL_COMMANDS_PACMAN: Record<string, string[]> = {
@@ -309,6 +313,9 @@ const SPECIAL_INSTALL_COMMANDS_PACMAN: Record<string, string[]> = {
   ],
   semgrep: [
     'pip install semgrep || python -m pip install semgrep',
+  ],
+  bun: [
+    'curl -fsSL https://bun.sh/install | bash',
   ],
 }
 

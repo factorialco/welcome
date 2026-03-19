@@ -296,6 +296,7 @@ const BASE_BREW_FORMULAE = [
   'composer',
   'yq',
   'tmux',
+  'bun',
 ]
 
 const CLI_BREW_FORMULAE_MAP: Record<string, string> = {
@@ -414,6 +415,8 @@ export async function runStep1(
 
       const brewfile =
         [
+          'tap "oven-sh/bun"',
+          '',
           `brew "${versionManager}"`,
           ...BASE_BREW_FORMULAE.map((f) => `brew "${f}"`),
           ...cliBrewLines,
