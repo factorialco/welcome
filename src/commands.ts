@@ -1023,8 +1023,8 @@ export async function runStep9(
         await sh(`${editorCmd} --install-extension "${ext}" --force 2>/dev/null || true`)
       }
 
-      // 2. Custom .vsix extensions
-      onProgress(2, `[${editorName}] Installing custom .vsix extensions...`)
+      // 2. Custom .vsix extensions (vscode-factorial, zengrep, etc.)
+      onProgress(2, `[${editorName}] Cloning devenv-vscode-extensions...`)
       const extRepoPath = path.join(CODE_DIR, 'devenv-vscode-extensions')
       if (!(await dirExists(extRepoPath))) {
         await sh(
@@ -1038,11 +1038,12 @@ export async function runStep9(
       const distDir = path.join(extRepoPath, 'dist')
       if (await dirExists(distDir)) {
         const files = await readdir(distDir)
-        for (const file of files) {
-          if (file.endsWith('.vsix')) {
-            const vsixPath = path.join(distDir, file)
-            await sh(`${editorCmd} --install-extension "${vsixPath}" --force 2>/dev/null || true`)
-          }
+        const vsixFiles = files.filter((f) => f.endsWith('.vsix'))
+        for (let i = 0; i < vsixFiles.length; i++) {
+          const file = vsixFiles[i]!
+          const vsixPath = path.join(distDir, file)
+          onProgress(2, `[${editorName}] Installing ${file} (${i + 1}/${vsixFiles.length})...`)
+          await sh(`${editorCmd} --install-extension "${vsixPath}" --force 2>/dev/null || true`)
         }
       }
     }

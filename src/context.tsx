@@ -207,7 +207,7 @@ export const SETUP_TASKS: SetupTask[] = [
     icon: '▸',
     name: 'Install editor extensions',
     description: 'VS Code/Cursor extensions',
-    dependsOn: [1]
+    dependsOn: [1, 3]
   },
   {
     id: 10,
