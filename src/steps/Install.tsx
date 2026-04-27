@@ -123,7 +123,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'yarn install / pnpm install...',
         'bundle install...',
         'Setting up shadowdog...',
-        'docker-compose up -d...',
+        'docker compose up -d...',
         'Waiting for MySQL readiness...',
         config.restoreDb
           ? 'Restoring database from backup...'

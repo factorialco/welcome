@@ -1403,10 +1403,31 @@ export async function runStep12(
     onProgress(4, 'Running shadowdog...')
     await sh('pnpm shadowdog', { cwd: REPO_PATH, interactive: true })
 
-    // 4. Docker compose
-    onProgress(5, 'Starting docker-compose...')
-    await sh('docker-compose up -d --force-recreate', {
-      cwd: path.join(REPO_PATH, '.local-dev'),
+    // 4. Docker compose — detect modern plugin vs legacy standalone
+    const composeCmd = await (async () => {
+      try {
+        await sh('docker compose version', { cwd: REPO_PATH })
+        return 'docker compose'
+      } catch {
+        try {
+          await sh('docker-compose --version', { cwd: REPO_PATH })
+          onProgress(
+            5,
+            '⚠ Legacy docker-compose detected. Consider upgrading to the Docker Compose plugin (docker compose).'
+          )
+          return 'docker-compose'
+        } catch {
+          throw new Error(
+            'Neither "docker compose" nor "docker-compose" found. Please install Docker Compose.'
+          )
+        }
+      }
+    })()
+
+    onProgress(5, 'Starting docker compose...')
+    const composeCwd = path.join(REPO_PATH, '.local-dev')
+    await sh(`${composeCmd} up -d --force-recreate`, {
+      cwd: composeCwd,
       interactive: true
     })
 
@@ -1416,13 +1437,19 @@ export async function runStep12(
     const retryInterval = 15
     let mysqlHealthy = false
     for (let i = 0; i < maxRetries; i++) {
-      const health = await sh(
-        'docker inspect --format=\'{{.State.Health.Status}}\' mysql 2>/dev/null || echo "starting"',
-        { cwd: path.join(REPO_PATH, '.local-dev') }
-      )
-      if (health.stdout.trim() === 'healthy') {
-        mysqlHealthy = true
-        break
+      const containerId = await sh(`${composeCmd} ps -q mysql 2>/dev/null || echo ""`, {
+        cwd: composeCwd
+      })
+      const cid = containerId.stdout.trim()
+      if (cid) {
+        const health = await sh(
+          `docker inspect --format='{{.State.Health.Status}}' ${cid} 2>/dev/null || echo "starting"`,
+          { cwd: composeCwd }
+        )
+        if (health.stdout.trim() === 'healthy') {
+          mysqlHealthy = true
+          break
+        }
       }
       onProgress(6, `Waiting for MySQL (${i + 1}/${maxRetries})...`)
       await new Promise((r) => setTimeout(r, retryInterval * 1000))

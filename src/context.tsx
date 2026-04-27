@@ -227,7 +227,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 12,
     icon: '▸',
     name: 'Setup development environment',
-    description: 'Install deps, docker-compose, DB setup, tmuxinator',
+    description: 'Install deps, docker compose, DB setup, tmuxinator',
     dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   },
   {
