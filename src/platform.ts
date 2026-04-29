@@ -410,11 +410,12 @@ export async function getLibBuildFlags(
   shFn: (cmd: string) => Promise<{ code: number; stdout: string; stderr: string }>
 ): Promise<{ ldflags: string; cppflags: string; optDir: string }> {
   if (isDarwin()) {
-    const brewPrefix = (await shFn('brew --prefix')).stdout.trim()
+    const zstdPrefix = (await shFn('brew --prefix zstd')).stdout.trim()
+    const opensslPrefix = (await shFn('brew --prefix openssl')).stdout.trim()
     return {
-      ldflags: `-L${brewPrefix}/opt/zstd/lib`,
-      cppflags: `-I${brewPrefix}/opt/zstd/include`,
-      optDir: `${brewPrefix}/opt/openssl`,
+      ldflags: `-L${zstdPrefix}/lib`,
+      cppflags: `-I${zstdPrefix}/include`,
+      optDir: opensslPrefix,
     }
   }
 
