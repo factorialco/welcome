@@ -1373,21 +1373,24 @@ export async function runStep12(
 
     // mysql2 gem with library flags (platform-aware)
     const buildFlags = await getLibBuildFlags((cmd) => sh(cmd))
+
+    // Bundle config for native gem compilation — set before any gem install so
+    // both the standalone gem install and bundle install pick up the right flags.
+    // Needed on all macOS (not just ARM) with MySQL 9.x which requires zstd.
+    if (isDarwin() || isLinux()) {
+      await sh(
+        `bundle config set --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
+        { cwd: path.join(REPO_PATH, 'backend') }
+      )
+    }
+
     await sh(
-      `gem install mysql2 -- --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
+      `gem install mysql2 -- --with-opt-dir="${buildFlags.optDir}" --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
       { cwd: path.join(REPO_PATH, 'backend') }
     )
 
     // tmuxinator (terminal multiplexer session manager)
     await sh('gem install tmuxinator')
-
-    // Bundle config for native gem compilation
-    if (isArm() || isLinux()) {
-      await sh(
-        `bundle config --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
-        { cwd: path.join(REPO_PATH, 'backend') }
-      )
-    }
 
     await sh('bundle install', { cwd: path.join(REPO_PATH, 'backend'), interactive: true })
 
