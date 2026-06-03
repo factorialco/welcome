@@ -1345,8 +1345,33 @@ export async function runStep11(
   }
 }
 
-/** Step 12: Setup development environment */
+/** Step 12: Conductor ECR login — authenticate Docker with the Conductor
+ *  registry so the conductor image can be pulled (runs before step 13). */
 export async function runStep12(
+  _config: SetupConfig,
+  onProgress: ProgressCallback
+): Promise<TaskResult> {
+  const start = Date.now()
+  try {
+    onProgress(0, `Logging in to ${CONDUCTOR_ECR_REGISTRY}...`)
+    const login = await sh(
+      `aws ecr get-login-password --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin ${CONDUCTOR_ECR_REGISTRY}`,
+      { interactive: true }
+    )
+    if (login.code !== 0) {
+      throw new Error(
+        `Failed to authenticate Docker with ECR (${CONDUCTOR_ECR_REGISTRY}). Ensure your AWS SSO session is active.`
+      )
+    }
+
+    return { success: true, duration: Date.now() - start }
+  } catch (e: any) {
+    return { success: false, error: e.message, duration: Date.now() - start }
+  }
+}
+
+/** Step 13: Setup development environment */
+export async function runStep13(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
@@ -1502,8 +1527,8 @@ export async function runStep12(
   }
 }
 
-/** Step 13: Install agent skills */
-export async function runStep13(
+/** Step 14: Install agent skills */
+export async function runStep14(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
@@ -1516,31 +1541,6 @@ export async function runStep13(
       if (result.code !== 0) {
         // Non-fatal: log but continue
       }
-    }
-
-    return { success: true, duration: Date.now() - start }
-  } catch (e: any) {
-    return { success: false, error: e.message, duration: Date.now() - start }
-  }
-}
-
-/** Step 14: Conductor ECR login — authenticate Docker with the Conductor
- *  registry so the conductor image can be pulled (must run before step 12). */
-export async function runStep14(
-  _config: SetupConfig,
-  onProgress: ProgressCallback
-): Promise<TaskResult> {
-  const start = Date.now()
-  try {
-    onProgress(0, `Logging in to ${CONDUCTOR_ECR_REGISTRY}...`)
-    const login = await sh(
-      `aws ecr get-login-password --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin ${CONDUCTOR_ECR_REGISTRY}`,
-      { interactive: true }
-    )
-    if (login.code !== 0) {
-      throw new Error(
-        `Failed to authenticate Docker with ECR (${CONDUCTOR_ECR_REGISTRY}). Ensure your AWS SSO session is active.`
-      )
     }
 
     return { success: true, duration: Date.now() - start }
