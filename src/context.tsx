@@ -136,7 +136,7 @@ function getIdentityFromSystem(): { fullName: string; email: string } {
   }
 }
 
-// ── The 13 setup tasks from welcome.sh ─────────────────
+// ── The setup tasks from welcome.sh ────────────────────
 export type SetupTask = {
   id: number
   icon: string
@@ -236,6 +236,13 @@ export const SETUP_TASKS: SetupTask[] = [
     name: 'Install agent skills',
     description: 'npx skills add for 5 skill repos',
     dependsOn: [1]
+  },
+  {
+    id: 14,
+    icon: '▸',
+    name: 'Setup Conductor',
+    description: 'ECR login, pull conductor image, rake conductor:setup',
+    dependsOn: [6, 12]
   }
 ]
 

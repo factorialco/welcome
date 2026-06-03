@@ -133,6 +133,11 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       return [
         'npx skills add factorialco/factorial-skills...',
       ]
+    case 14:
+      return [
+        'Logging in to Conductor ECR registry...',
+        'Running bin/rake conductor:setup...'
+      ]
     default:
       return []
   }

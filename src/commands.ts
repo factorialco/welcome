@@ -43,6 +43,7 @@ const REPO_PATH = path.join(CODE_DIR, REPO_NAME)
 const LOCAL_DOMAIN = 'local.factorial.dev'
 const LOCAL_AWS_PROFILE = 'development'
 const LOCAL_AWS_DEFAULT_REGION = 'eu-central-1'
+const CONDUCTOR_ECR_REGISTRY = '771567148620.dkr.ecr.eu-central-1.amazonaws.com'
 const BUNDLER_VERSION = '2.5.11'
 const PERSONAL_ENV_RC_PATH = path.join(REPO_PATH, '.envrc.personal')
 
@@ -313,7 +314,7 @@ const EDITOR_CASK_MAP: Record<string, string> = {
 }
 
 // ── Task Runners ────────────────────────────────────────
-// Each function corresponds to one of the 13 steps from welcome.sh.
+// Each function corresponds to one of the setup steps from welcome.sh.
 // They report progress via the `onProgress` callback and return a TaskResult.
 
 /** Ensure Homebrew is installed on macOS; no-op on other platforms */
@@ -1508,6 +1509,43 @@ export async function runStep13(
   }
 }
 
+/** Step 14: Setup Conductor (OSS workflow orchestration) */
+export async function runStep14(
+  _config: SetupConfig,
+  onProgress: ProgressCallback
+): Promise<TaskResult> {
+  const start = Date.now()
+  try {
+    // 1. Authenticate Docker with the Conductor ECR registry so the
+    //    conductor-server image can be pulled.
+    onProgress(0, `Logging in to ${CONDUCTOR_ECR_REGISTRY}...`)
+    const login = await sh(
+      `aws ecr get-login-password --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin ${CONDUCTOR_ECR_REGISTRY}`,
+      { interactive: true }
+    )
+    if (login.code !== 0) {
+      throw new Error(
+        `Failed to authenticate Docker with ECR (${CONDUCTOR_ECR_REGISTRY}). Ensure your AWS SSO session is active.`
+      )
+    }
+
+    // 2. Run the Conductor setup rake task in the backend. This pulls the
+    //    conductor-server image and provisions the local Conductor service.
+    onProgress(1, 'Running bin/rake conductor:setup...')
+    const rake = await sh('bin/rake conductor:setup', {
+      cwd: path.join(REPO_PATH, 'backend'),
+      interactive: true
+    })
+    if (rake.code !== 0) {
+      throw new Error('bin/rake conductor:setup failed. Check /tmp/welcome.log for details.')
+    }
+
+    return { success: true, duration: Date.now() - start }
+  } catch (e: any) {
+    return { success: false, error: e.message, duration: Date.now() - start }
+  }
+}
+
 // ── Task runner map ─────────────────────────────────────
 export type TaskRunner = (config: SetupConfig, onProgress: ProgressCallback) => Promise<TaskResult>
 
@@ -1524,7 +1562,8 @@ export const TASK_RUNNERS: Record<number, TaskRunner> = {
   10: runStep10,
   11: runStep11,
   12: runStep12,
-  13: runStep13
+  13: runStep13,
+  14: runStep14
 }
 
 // ── SSH Setup Helpers (used by SSHSetup wizard step) ────
