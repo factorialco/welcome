@@ -136,6 +136,8 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
     case 14:
       return [
         'Logging in to Conductor ECR registry...',
+        'Starting Conductor containers...',
+        'Waiting for Conductor to become healthy...',
         'Running bin/rake conductor:setup...'
       ]
     default:

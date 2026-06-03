@@ -241,7 +241,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 14,
     icon: '▸',
     name: 'Setup Conductor',
-    description: 'ECR login, pull conductor image, rake conductor:setup',
+    description: 'ECR login, start conductor containers, rake conductor:setup',
     dependsOn: [6, 12]
   }
 ]
