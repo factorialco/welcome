@@ -124,6 +124,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'bundle install...',
         'Setting up shadowdog...',
         'docker compose up -d...',
+        'Starting Conductor services...',
         'Waiting for MySQL readiness...',
         config.restoreDb
           ? 'Restoring database from backup...'
@@ -135,10 +136,7 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 14:
       return [
-        'Logging in to Conductor ECR registry...',
-        'Starting Conductor containers...',
-        'Waiting for Conductor to become healthy...',
-        'Running bin/rake conductor:setup...'
+        'Logging in to Conductor ECR registry...'
       ]
     default:
       return []

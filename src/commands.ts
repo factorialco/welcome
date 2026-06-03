@@ -1436,6 +1436,21 @@ export async function runStep12(
       env: { REPO_ROOT: REPO_PATH }
     })
 
+    // Start the Conductor services (postgres + server). They currently sit
+    // behind the "conductor" compose profile, so bring them up explicitly by
+    // name with the profile enabled. The image pull relies on the Conductor
+    // ECR login having run in its dedicated step beforehand.
+    // (When the profile is dropped from the compose file, this can fold into
+    // the main `up` above.)
+    onProgress(6, 'Starting Conductor services (conductor-postgres, conductor)...')
+    const conductorUp = await sh(
+      `direnv exec "${composeCwd}" ${composeCmd} --profile conductor up -d conductor-postgres conductor`,
+      { cwd: composeCwd, interactive: true, env: { REPO_ROOT: REPO_PATH } }
+    )
+    if (conductorUp.code !== 0) {
+      throw new Error('Failed to start Conductor services via docker compose.')
+    }
+
     // 5. Wait for MySQL
     onProgress(6, 'Waiting for MySQL readiness...')
     const maxRetries = 10
@@ -1509,15 +1524,14 @@ export async function runStep13(
   }
 }
 
-/** Step 14: Setup Conductor (OSS workflow orchestration) */
+/** Step 14: Conductor ECR login — authenticate Docker with the Conductor
+ *  registry so the conductor image can be pulled (must run before step 12). */
 export async function runStep14(
   _config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
   const start = Date.now()
   try {
-    // 1. Authenticate Docker with the Conductor ECR registry so the
-    //    conductor-server image can be pulled.
     onProgress(0, `Logging in to ${CONDUCTOR_ECR_REGISTRY}...`)
     const login = await sh(
       `aws ecr get-login-password --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin ${CONDUCTOR_ECR_REGISTRY}`,
@@ -1527,60 +1541,6 @@ export async function runStep14(
       throw new Error(
         `Failed to authenticate Docker with ECR (${CONDUCTOR_ECR_REGISTRY}). Ensure your AWS SSO session is active.`
       )
-    }
-
-    const composeCwd = path.join(REPO_PATH, '.local-dev')
-    const composeEnv = { REPO_ROOT: REPO_PATH }
-    const composeCmd =
-      (await sh('docker compose version', { cwd: composeCwd })).code === 0
-        ? 'docker compose'
-        : 'docker-compose'
-
-    // 2. Bring the Conductor services up directly by name — the postgres db it
-    //    depends on, plus the conductor server itself. Targeting the services
-    //    explicitly starts them even though they define a compose profile, and
-    //    pulls the conductor-server image.
-    onProgress(1, 'Starting Conductor containers (conductor-postgres, conductor)...')
-    const up = await sh(
-      `direnv exec "${composeCwd}" ${composeCmd} up -d conductor-postgres conductor`,
-      { cwd: composeCwd, interactive: true, env: composeEnv }
-    )
-    if (up.code !== 0) {
-      throw new Error('Failed to start Conductor containers via docker compose.')
-    }
-
-    // 3. Wait for the Conductor server to report healthy before running setup —
-    //    conductor:setup registers definitions against the running server.
-    //    The compose service pins container_name: conductor, so inspect it directly.
-    onProgress(2, 'Waiting for Conductor to become healthy...')
-    const maxRetries = 20
-    const retryInterval = 15
-    let conductorHealthy = false
-    for (let i = 0; i < maxRetries; i++) {
-      const health = await sh(
-        `docker inspect --format='{{.State.Health.Status}}' conductor 2>/dev/null || echo "starting"`,
-        { cwd: composeCwd }
-      )
-      if (health.stdout.trim() === 'healthy') {
-        conductorHealthy = true
-        break
-      }
-      onProgress(2, `Waiting for Conductor (${i + 1}/${maxRetries})...`)
-      await new Promise((r) => setTimeout(r, retryInterval * 1000))
-    }
-    if (!conductorHealthy) {
-      throw new Error('Conductor did not become healthy in time.')
-    }
-
-    // 4. Run the Conductor setup rake task in the backend, now that the server
-    //    is up and healthy.
-    onProgress(3, 'Running bin/rake conductor:setup...')
-    const rake = await sh('bin/rake conductor:setup', {
-      cwd: path.join(REPO_PATH, 'backend'),
-      interactive: true
-    })
-    if (rake.code !== 0) {
-      throw new Error('bin/rake conductor:setup failed. Check /tmp/welcome.log for details.')
     }
 
     return { success: true, duration: Date.now() - start }

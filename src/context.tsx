@@ -224,11 +224,18 @@ export const SETUP_TASKS: SetupTask[] = [
     dependsOn: [4, 7, 10]
   },
   {
+    id: 14,
+    icon: '▸',
+    name: 'Conductor ECR login',
+    description: 'docker login to the Conductor ECR registry (before pulling the image)',
+    dependsOn: [2, 6]
+  },
+  {
     id: 12,
     icon: '▸',
     name: 'Setup development environment',
-    description: 'Install deps, docker compose, DB setup, tmuxinator',
-    dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    description: 'Install deps, docker compose (incl. conductor), DB setup + conductor:setup, tmuxinator',
+    dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14]
   },
   {
     id: 13,
@@ -236,13 +243,6 @@ export const SETUP_TASKS: SetupTask[] = [
     name: 'Install agent skills',
     description: 'npx skills add for 5 skill repos',
     dependsOn: [1]
-  },
-  {
-    id: 14,
-    icon: '▸',
-    name: 'Setup Conductor',
-    description: 'ECR login, start conductor containers, rake conductor:setup',
-    dependsOn: [6, 12]
   }
 ]
 
