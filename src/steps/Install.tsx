@@ -120,16 +120,21 @@ function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 12:
       return [
+        'Logging in to Conductor ECR registry...'
+      ]
+    case 13:
+      return [
         'yarn install / pnpm install...',
         'bundle install...',
         'Setting up shadowdog...',
         'docker compose up -d...',
+        'Starting Conductor services...',
         'Waiting for MySQL readiness...',
         config.restoreDb
           ? 'Restoring database from backup...'
           : 'Running db:create + db:migrate...'
       ]
-    case 13:
+    case 14:
       return [
         'npx skills add factorialco/factorial-skills...',
       ]

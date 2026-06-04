@@ -136,7 +136,7 @@ function getIdentityFromSystem(): { fullName: string; email: string } {
   }
 }
 
-// ── The 13 setup tasks from welcome.sh ─────────────────
+// ── The setup tasks from welcome.sh ────────────────────
 export type SetupTask = {
   id: number
   icon: string
@@ -226,12 +226,19 @@ export const SETUP_TASKS: SetupTask[] = [
   {
     id: 12,
     icon: '▸',
-    name: 'Setup development environment',
-    description: 'Install deps, docker compose, DB setup, tmuxinator',
-    dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    name: 'Conductor ECR login',
+    description: 'docker login to the Conductor ECR registry (before pulling the image)',
+    dependsOn: [2, 6]
   },
   {
     id: 13,
+    icon: '▸',
+    name: 'Setup development environment',
+    description: 'Install deps, docker compose (incl. conductor), DB setup + conductor:setup, tmuxinator',
+    dependsOn: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  },
+  {
+    id: 14,
     icon: '▸',
     name: 'Install agent skills',
     description: 'npx skills add for 5 skill repos',

@@ -43,6 +43,7 @@ const REPO_PATH = path.join(CODE_DIR, REPO_NAME)
 const LOCAL_DOMAIN = 'local.factorial.dev'
 const LOCAL_AWS_PROFILE = 'development'
 const LOCAL_AWS_DEFAULT_REGION = 'eu-central-1'
+const CONDUCTOR_ECR_REGISTRY = '771567148620.dkr.ecr.eu-central-1.amazonaws.com'
 const BUNDLER_VERSION = '2.5.11'
 const PERSONAL_ENV_RC_PATH = path.join(REPO_PATH, '.envrc.personal')
 
@@ -313,7 +314,7 @@ const EDITOR_CASK_MAP: Record<string, string> = {
 }
 
 // ── Task Runners ────────────────────────────────────────
-// Each function corresponds to one of the 13 steps from welcome.sh.
+// Each function corresponds to one of the setup steps from welcome.sh.
 // They report progress via the `onProgress` callback and return a TaskResult.
 
 /** Ensure Homebrew is installed on macOS; no-op on other platforms */
@@ -1344,8 +1345,33 @@ export async function runStep11(
   }
 }
 
-/** Step 12: Setup development environment */
+/** Step 12: Conductor ECR login — authenticate Docker with the Conductor
+ *  registry so the conductor image can be pulled (runs before step 13). */
 export async function runStep12(
+  _config: SetupConfig,
+  onProgress: ProgressCallback
+): Promise<TaskResult> {
+  const start = Date.now()
+  try {
+    onProgress(0, `Logging in to ${CONDUCTOR_ECR_REGISTRY}...`)
+    const login = await sh(
+      `aws ecr get-login-password --profile "${LOCAL_AWS_PROFILE}" --region "${LOCAL_AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin ${CONDUCTOR_ECR_REGISTRY}`,
+      { interactive: true }
+    )
+    if (login.code !== 0) {
+      throw new Error(
+        `Failed to authenticate Docker with ECR (${CONDUCTOR_ECR_REGISTRY}). Ensure your AWS SSO session is active.`
+      )
+    }
+
+    return { success: true, duration: Date.now() - start }
+  } catch (e: any) {
+    return { success: false, error: e.message, duration: Date.now() - start }
+  }
+}
+
+/** Step 13: Setup development environment */
+export async function runStep13(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
@@ -1435,6 +1461,21 @@ export async function runStep12(
       env: { REPO_ROOT: REPO_PATH }
     })
 
+    // Start the Conductor services (postgres + server). They currently sit
+    // behind the "conductor" compose profile, so bring them up explicitly by
+    // name with the profile enabled. The image pull relies on the Conductor
+    // ECR login having run in its dedicated step beforehand.
+    // (When the profile is dropped from the compose file, this can fold into
+    // the main `up` above.)
+    onProgress(6, 'Starting Conductor services (conductor-postgres, conductor)...')
+    const conductorUp = await sh(
+      `direnv exec "${composeCwd}" ${composeCmd} --profile conductor up -d conductor-postgres conductor`,
+      { cwd: composeCwd, interactive: true, env: { REPO_ROOT: REPO_PATH } }
+    )
+    if (conductorUp.code !== 0) {
+      throw new Error('Failed to start Conductor services via docker compose.')
+    }
+
     // 5. Wait for MySQL
     onProgress(6, 'Waiting for MySQL readiness...')
     const maxRetries = 10
@@ -1486,8 +1527,8 @@ export async function runStep12(
   }
 }
 
-/** Step 13: Install agent skills */
-export async function runStep13(
+/** Step 14: Install agent skills */
+export async function runStep14(
   config: SetupConfig,
   onProgress: ProgressCallback
 ): Promise<TaskResult> {
@@ -1524,7 +1565,8 @@ export const TASK_RUNNERS: Record<number, TaskRunner> = {
   10: runStep10,
   11: runStep11,
   12: runStep12,
-  13: runStep13
+  13: runStep13,
+  14: runStep14
 }
 
 // ── SSH Setup Helpers (used by SSHSetup wizard step) ────
