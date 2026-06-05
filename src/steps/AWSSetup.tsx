@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { Box, Text, useInput } from 'ink'
-import Spinner from 'ink-spinner'
-import { useWizard, BRAND_COLOR } from '../context.js'
-import { StepContainer } from '../components/StepContainer.js'
-import { Divider } from '../components/UI.js'
+import { useState, useEffect } from "react";
+import { Box, Text, useInput } from "ink";
+import Spinner from "ink-spinner";
+import { useWizard, BRAND_COLOR } from "../context/index.js";
+import { StepContainer } from "../components/StepContainer.js";
+import { Divider } from "../components/UI.js";
 import {
   checkAWSCLI,
   installAWSCLI,
@@ -11,126 +11,130 @@ import {
   ensureAWSProfileConfig,
   checkAWSSession,
   runAWSSSOLogin,
-  getAWSCallerIdentity
-} from '../commands.js'
+  getAWSCallerIdentity,
+  getErrorMessage,
+} from "../commands/index.js";
 
 type Phase =
-  | 'checking'       // Checking AWS CLI and existing session
-  | 'installing'     // Installing AWS CLI
-  | 'authenticated'  // Already authenticated, ready to continue
-  | 'ready'          // Ready to start SSO login
-  | 'logging-in'     // SSO login in progress (browser open)
-  | 'verified'       // Login verified, ready to continue
-  | 'error'          // Something went wrong
+  | "checking" // Checking AWS CLI and existing session
+  | "installing" // Installing AWS CLI
+  | "authenticated" // Already authenticated, ready to continue
+  | "ready" // Ready to start SSO login
+  | "logging-in" // SSO login in progress (browser open)
+  | "verified" // Login verified, ready to continue
+  | "error"; // Something went wrong
 
 export function AWSSetupStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard()
+  const { updateConfig, goNext, goBack } = useWizard();
 
-  const [phase, setPhase] = useState<Phase>('checking')
-  const [identity, setIdentity] = useState<string>('')
-  const [errorMsg, setErrorMsg] = useState<string>('')
-  const [hasConfig, setHasConfig] = useState(false)
+  const [phase, setPhase] = useState<Phase>("checking");
+  const [identity, setIdentity] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [hasConfig, setHasConfig] = useState(false);
 
   useEffect(() => {
-    checkExistingSession()
-  }, [])
+    // Run the initial session check once on mount. checkExistingSession is also
+    // invoked directly from the retry handler, so it intentionally stays out of deps.
+    checkExistingSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function checkExistingSession() {
-    setPhase('checking')
+    setPhase("checking");
     try {
       // Check if AWS CLI is available
-      const cliInstalled = await checkAWSCLI()
+      const cliInstalled = await checkAWSCLI();
       if (!cliInstalled) {
         // Auto-install AWS CLI
-        setPhase('installing')
-        const installResult = await installAWSCLI()
+        setPhase("installing");
+        const installResult = await installAWSCLI();
         if (!installResult.success) {
-          setErrorMsg(installResult.error || 'Failed to install AWS CLI.')
-          setPhase('error')
-          return
+          setErrorMsg(installResult.error || "Failed to install AWS CLI.");
+          setPhase("error");
+          return;
         }
       }
 
       // Ensure the development profile config exists
-      await ensureAWSProfileConfig()
+      await ensureAWSProfileConfig();
 
       // Check if config exists
-      const configExists = await hasAWSConfig()
-      setHasConfig(configExists)
+      const configExists = await hasAWSConfig();
+      setHasConfig(configExists);
 
       // Check if session is active
       if (configExists) {
-        const sessionActive = await checkAWSSession()
+        const sessionActive = await checkAWSSession();
         if (sessionActive) {
-          const arn = await getAWSCallerIdentity()
-          if (arn) setIdentity(arn)
-          updateConfig({ awsAuthenticated: true })
-          setPhase('authenticated')
-          return
+          const arn = await getAWSCallerIdentity();
+          if (arn) setIdentity(arn);
+          updateConfig({ awsAuthenticated: true });
+          setPhase("authenticated");
+          return;
         }
       }
 
-      setPhase('ready')
-    } catch (e: any) {
-      setErrorMsg(e.message)
-      setPhase('error')
+      setPhase("ready");
+    } catch (e) {
+      setErrorMsg(getErrorMessage(e));
+      setPhase("error");
     }
   }
 
   async function handleLogin() {
-    setPhase('logging-in')
-    setErrorMsg('')
+    setPhase("logging-in");
+    setErrorMsg("");
     try {
-      const result = await runAWSSSOLogin()
+      const result = await runAWSSSOLogin();
       if (result.success) {
-        const arn = await getAWSCallerIdentity()
-        if (arn) setIdentity(arn)
-        updateConfig({ awsAuthenticated: true })
-        setPhase('verified')
+        const arn = await getAWSCallerIdentity();
+        if (arn) setIdentity(arn);
+        updateConfig({ awsAuthenticated: true });
+        setPhase("verified");
       } else {
-        setErrorMsg(result.error || 'Login failed.')
-        setPhase('ready')
+        setErrorMsg(result.error || "Login failed.");
+        setPhase("ready");
       }
-    } catch (e: any) {
-      setErrorMsg(`Login failed: ${e.message}`)
-      setPhase('ready')
+    } catch (e) {
+      setErrorMsg(`Login failed: ${getErrorMessage(e)}`);
+      setPhase("ready");
     }
   }
 
   useInput((input, key) => {
-    if (phase === 'authenticated' || phase === 'verified') {
+    if (phase === "authenticated" || phase === "verified") {
       if (key.return) {
-        goNext()
+        goNext();
       }
     }
-    if (phase === 'ready') {
+    if (phase === "ready") {
       if (key.return) {
-        handleLogin()
+        handleLogin();
       }
-      if (input === 's' || input === 'S') {
-        goNext()
+      if (input === "s" || input === "S") {
+        goNext();
       }
     }
-    if (phase === 'error') {
-      if (input === 'r' || input === 'R') {
-        setErrorMsg('')
-        checkExistingSession()
+    if (phase === "error") {
+      if (input === "r" || input === "R") {
+        setErrorMsg("");
+        checkExistingSession();
       }
-      if (input === 's' || input === 'S') {
-        goNext()
+      if (input === "s" || input === "S") {
+        goNext();
       }
     }
     if (key.escape) {
-      goBack()
+      goBack();
     }
-  })
+  });
 
   return (
     <StepContainer
       title="AWS Credentials Setup"
       subtitle="Authenticate with AWS SSO for the development profile."
     >
-      {phase === 'checking' && (
+      {phase === "checking" && (
         <Box>
           <Text color={BRAND_COLOR}>
             <Spinner type="dots" />
@@ -139,7 +143,7 @@ export function AWSSetupStep() {
         </Box>
       )}
 
-      {phase === 'installing' && (
+      {phase === "installing" && (
         <Box>
           <Text color={BRAND_COLOR}>
             <Spinner type="dots" />
@@ -148,29 +152,36 @@ export function AWSSetupStep() {
         </Box>
       )}
 
-      {phase === 'authenticated' && (
+      {phase === "authenticated" && (
         <Box flexDirection="column" gap={1}>
           <Text>
-            <Text color="green" bold>{'✓ '}</Text>
+            <Text color="green" bold>
+              {"✓ "}
+            </Text>
             AWS SSO session is active.
           </Text>
-          {identity && <Text dimColor>  Identity: {identity}</Text>}
+          {identity && <Text dimColor> Identity: {identity}</Text>}
           <Divider />
           <Text>
-            Press{' '}
-            <Text color={BRAND_COLOR} bold>Enter</Text>
-            {' '}to continue to installation
+            Press{" "}
+            <Text color={BRAND_COLOR} bold>
+              Enter
+            </Text>{" "}
+            to continue to installation
           </Text>
         </Box>
       )}
 
-      {phase === 'ready' && (
+      {phase === "ready" && (
         <Box flexDirection="column" gap={1}>
           <Box flexDirection="column">
-            <Text bold>AWS SSO login is required for the development profile.</Text>
+            <Text bold>
+              AWS SSO login is required for the development profile.
+            </Text>
             {!hasConfig && (
               <Text dimColor>
-                Note: AWS config will be copied from the repo during installation.
+                Note: AWS config will be copied from the repo during
+                installation.
               </Text>
             )}
           </Box>
@@ -179,17 +190,19 @@ export function AWSSetupStep() {
 
           <Box flexDirection="column">
             <Text bold>What will happen:</Text>
-            <Text>{'  '}1. A browser window will open with the AWS SSO login page</Text>
-            <Text>{'  '}2. Sign in with your Factorial credentials</Text>
-            <Text>{'  '}3. Authorize the CLI access</Text>
-            <Text>{'  '}4. Return here — verification is automatic</Text>
+            <Text>
+              {"  "}1. A browser window will open with the AWS SSO login page
+            </Text>
+            <Text>{"  "}2. Sign in with your Factorial credentials</Text>
+            <Text>{"  "}3. Authorize the CLI access</Text>
+            <Text>{"  "}4. Return here — verification is automatic</Text>
           </Box>
 
           {errorMsg && (
             <>
               <Divider />
               <Text color="red">
-                <Text bold>{'✗ '}</Text>
+                <Text bold>{"✗ "}</Text>
                 {errorMsg}
               </Text>
             </>
@@ -199,9 +212,11 @@ export function AWSSetupStep() {
 
           <Box gap={2}>
             <Text>
-              Press{' '}
-              <Text color={BRAND_COLOR} bold>Enter</Text>
-              {' '}to start AWS SSO login
+              Press{" "}
+              <Text color={BRAND_COLOR} bold>
+                Enter
+              </Text>{" "}
+              to start AWS SSO login
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
@@ -215,7 +230,7 @@ export function AWSSetupStep() {
         </Box>
       )}
 
-      {phase === 'logging-in' && (
+      {phase === "logging-in" && (
         <Box flexDirection="column" gap={1}>
           <Box>
             <Text color={BRAND_COLOR}>
@@ -227,36 +242,41 @@ export function AWSSetupStep() {
             Complete the sign-in in your browser, then return here.
           </Text>
           <Text dimColor>
-            If the browser didn't open, check <Text color={BRAND_COLOR}>/tmp/welcome.log</Text> for the login URL.
+            If the browser didn't open, check{" "}
+            <Text color={BRAND_COLOR}>/tmp/welcome.log</Text> for the login URL.
           </Text>
         </Box>
       )}
 
-      {phase === 'verified' && (
+      {phase === "verified" && (
         <Box flexDirection="column" gap={1}>
           <Text>
-            <Text color="green" bold>{'✓ '}</Text>
+            <Text color="green" bold>
+              {"✓ "}
+            </Text>
             AWS SSO login verified!
           </Text>
-          {identity && <Text dimColor>  Identity: {identity}</Text>}
+          {identity && <Text dimColor> Identity: {identity}</Text>}
           <Divider />
           <Text>
-            Press{' '}
-            <Text color={BRAND_COLOR} bold>Enter</Text>
-            {' '}to continue to installation
+            Press{" "}
+            <Text color={BRAND_COLOR} bold>
+              Enter
+            </Text>{" "}
+            to continue to installation
           </Text>
         </Box>
       )}
 
-      {phase === 'error' && (
+      {phase === "error" && (
         <Box flexDirection="column" gap={1}>
           <Text color="red">
-            <Text bold>{'✗ '}</Text>
+            <Text bold>{"✗ "}</Text>
             {errorMsg}
           </Text>
           <Text dimColor>
-            If the error persists, ensure you have AWS access or request it
-            in <Text bold>"Application Access Request"</Text> in IT Support:
+            If the error persists, ensure you have AWS access or request it in{" "}
+            <Text bold>"Application Access Request"</Text> in IT Support:
           </Text>
           <Text dimColor>
             https://portal.support.factorialhr.com/servicedesk/customer/portal/247
@@ -264,7 +284,11 @@ export function AWSSetupStep() {
           <Divider />
           <Box gap={2}>
             <Text>
-              Press <Text color={BRAND_COLOR} bold>r</Text> to retry
+              Press{" "}
+              <Text color={BRAND_COLOR} bold>
+                r
+              </Text>{" "}
+              to retry
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
@@ -278,5 +302,5 @@ export function AWSSetupStep() {
         </Box>
       )}
     </StepContainer>
-  )
+  );
 }

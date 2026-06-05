@@ -1,17 +1,17 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import { BRAND_COLOR } from '../context.js'
+import React from "react";
+import { Box, Text } from "ink";
+import { BRAND_COLOR } from "../context/index.js";
 
 export function StepContainer({
   title,
   subtitle,
   children,
-  color = BRAND_COLOR
+  color = BRAND_COLOR,
 }: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-  color?: string
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  color?: string;
 }) {
   return (
     <Box
@@ -34,5 +34,5 @@ export function StepContainer({
       </Box>
       {children}
     </Box>
-  )
+  );
 }

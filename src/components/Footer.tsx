@@ -1,5 +1,5 @@
-import React from 'react'
-import { Box, Text } from 'ink'
+import React from "react";
+import { Box, Text } from "ink";
 
 export function Footer({ showBack = true }: { showBack?: boolean }) {
   return (
@@ -15,5 +15,5 @@ export function Footer({ showBack = true }: { showBack?: boolean }) {
         <Text color="gray">ctrl+c</Text> quit
       </Text>
     </Box>
-  )
+  );
 }
