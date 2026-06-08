@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { Box, Text, useInput } from "ink";
-import Spinner from "ink-spinner";
-import { useWizard, BRAND_COLOR } from "../context/index.js";
-import { StepContainer } from "../components/StepContainer.js";
-import { Divider } from "../components/UI.js";
+import { useState, useEffect } from 'react'
+import { Box, Text, useInput } from 'ink'
+import Spinner from 'ink-spinner'
+import { useWizard, BRAND_COLOR } from '../context/index.js'
+import { StepContainer } from '../components/StepContainer.js'
+import { Divider } from '../components/UI.js'
 import {
   checkGitHubConnectivity,
   findWorkingSSHKey,
@@ -13,81 +13,81 @@ import {
   verifySSHAccess,
   configureSSHKey,
   getErrorMessage,
-} from "../commands/index.js";
+} from '../commands/index.js'
 
 type Phase =
-  | "checking" // Looking for existing working SSH key
-  | "found" // Found a working key, ready to continue
-  | "generating" // Generating a new key
-  | "instructions" // Show public key + instructions to user
-  | "verifying" // Verifying SSO authorization
-  | "verified" // Verification passed, ready to continue
-  | "error"; // Something went wrong
+  | 'checking' // Looking for existing working SSH key
+  | 'found' // Found a working key, ready to continue
+  | 'generating' // Generating a new key
+  | 'instructions' // Show public key + instructions to user
+  | 'verifying' // Verifying SSO authorization
+  | 'verified' // Verification passed, ready to continue
+  | 'error' // Something went wrong
 
 export function SSHSetupStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard();
+  const { config, updateConfig, goNext, goBack } = useWizard()
 
-  const [phase, setPhase] = useState<Phase>("checking");
-  const [keyPath, setKeyPath] = useState<string>("");
-  const [publicKey, setPublicKey] = useState<string>("");
-  const [errorMsg, setErrorMsg] = useState<string>("");
-  const [copied, setCopied] = useState(false);
-  const [opened, setOpened] = useState(false);
+  const [phase, setPhase] = useState<Phase>('checking')
+  const [keyPath, setKeyPath] = useState<string>('')
+  const [publicKey, setPublicKey] = useState<string>('')
+  const [errorMsg, setErrorMsg] = useState<string>('')
+  const [copied, setCopied] = useState(false)
+  const [opened, setOpened] = useState(false)
 
   // On mount, check for existing SSH key. checkExistingKey is also invoked
   // directly from the retry handler, so it intentionally stays out of deps.
   useEffect(() => {
-    checkExistingKey();
+    checkExistingKey()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   async function checkExistingKey() {
-    setPhase("checking");
+    setPhase('checking')
     try {
       // First, try plain SSH connectivity — covers users who already have
       // GitHub + SSO configured via their agent, default keys, or ssh config.
-      const hasConnectivity = await checkGitHubConnectivity();
+      const hasConnectivity = await checkGitHubConnectivity()
       if (hasConnectivity) {
-        updateConfig({ sshKeyPath: "__default__" });
-        setPhase("found");
-        return;
+        updateConfig({ sshKeyPath: '__default__' })
+        setPhase('found')
+        return
       }
 
       // No default connectivity — scan individual private keys
-      const existing = await findWorkingSSHKey();
+      const existing = await findWorkingSSHKey()
       if (existing) {
-        setKeyPath(existing);
-        await configureSSHKey(existing);
-        updateConfig({ sshKeyPath: existing });
-        setPhase("found");
+        setKeyPath(existing)
+        await configureSSHKey(existing)
+        updateConfig({ sshKeyPath: existing })
+        setPhase('found')
       } else {
         // No working key found, generate one
-        await generateNewKey();
+        await generateNewKey()
       }
     } catch (e) {
-      setErrorMsg(getErrorMessage(e));
-      setPhase("error");
+      setErrorMsg(getErrorMessage(e))
+      setPhase('error')
     }
   }
 
   async function generateNewKey() {
-    setPhase("generating");
+    setPhase('generating')
     try {
-      const email = config.email || "dev@factorial.co";
-      const result = await generateSSHKey(email);
-      setKeyPath(result.keyPath);
-      setPublicKey(result.publicKey);
-      setPhase("instructions");
+      const email = config.email || 'dev@factorial.co'
+      const result = await generateSSHKey(email)
+      setKeyPath(result.keyPath)
+      setPublicKey(result.publicKey)
+      setPhase('instructions')
     } catch (e) {
-      setErrorMsg(`Failed to generate SSH key: ${getErrorMessage(e)}`);
-      setPhase("error");
+      setErrorMsg(`Failed to generate SSH key: ${getErrorMessage(e)}`)
+      setPhase('error')
     }
   }
 
   async function handleCopy() {
     try {
-      await copyToClipboard(publicKey);
-      setCopied(true);
+      await copyToClipboard(publicKey)
+      setCopied(true)
     } catch {
       // clipboard may not be available, that's ok
     }
@@ -95,72 +95,72 @@ export function SSHSetupStep() {
 
   async function handleOpen() {
     try {
-      await openURL("https://github.com/settings/keys");
-      setOpened(true);
+      await openURL('https://github.com/settings/keys')
+      setOpened(true)
     } catch {
       // browser may not open, that's ok
     }
   }
 
   async function handleVerify() {
-    setPhase("verifying");
+    setPhase('verifying')
     try {
-      const ok = await verifySSHAccess(keyPath);
+      const ok = await verifySSHAccess(keyPath)
       if (ok) {
-        updateConfig({ sshKeyPath: keyPath });
-        setPhase("verified");
+        updateConfig({ sshKeyPath: keyPath })
+        setPhase('verified')
       } else {
         setErrorMsg(
-          "SSH key does not have access to factorialco/factorial. Make sure you added the key to GitHub and authorized the factorialco SSO.",
-        );
-        setPhase("instructions");
+          'SSH key does not have access to factorialco/factorial. Make sure you added the key to GitHub and authorized the factorialco SSO.'
+        )
+        setPhase('instructions')
       }
     } catch (e) {
-      setErrorMsg(`Verification failed: ${getErrorMessage(e)}`);
-      setPhase("instructions");
+      setErrorMsg(`Verification failed: ${getErrorMessage(e)}`)
+      setPhase('instructions')
     }
   }
 
   useInput((input, key) => {
-    if (phase === "found" || phase === "verified") {
+    if (phase === 'found' || phase === 'verified') {
       if (key.return) {
-        goNext();
+        goNext()
       }
     }
-    if (phase === "instructions") {
-      if (input === "c" || input === "C") {
-        handleCopy();
+    if (phase === 'instructions') {
+      if (input === 'c' || input === 'C') {
+        handleCopy()
       }
-      if (input === "o" || input === "O") {
-        handleOpen();
+      if (input === 'o' || input === 'O') {
+        handleOpen()
       }
-      if (input === "v" || input === "V") {
-        handleVerify();
+      if (input === 'v' || input === 'V') {
+        handleVerify()
       }
-      if (input === "s" || input === "S") {
-        goNext();
+      if (input === 's' || input === 'S') {
+        goNext()
       }
     }
-    if (phase === "error") {
-      if (input === "r" || input === "R") {
-        setErrorMsg("");
-        checkExistingKey();
+    if (phase === 'error') {
+      if (input === 'r' || input === 'R') {
+        setErrorMsg('')
+        checkExistingKey()
       }
-      if (input === "s" || input === "S") {
-        goNext();
+      if (input === 's' || input === 'S') {
+        goNext()
       }
     }
     if (key.escape) {
-      goBack();
+      goBack()
     }
-  });
+  })
 
   return (
     <StepContainer
       title="SSH Key Setup"
       subtitle="Configure SSH access to GitHub for the Factorial organization."
     >
-      {phase === "checking" && (
+      {phase === 'checking' && (
         <Box>
           <Text color={BRAND_COLOR}>
             <Spinner type="dots" />
@@ -169,39 +169,36 @@ export function SSHSetupStep() {
         </Box>
       )}
 
-      {phase === "found" && (
+      {phase === 'found' && (
         <Box flexDirection="column" gap={1}>
           <Text>
             <Text color="green" bold>
-              {"✓ "}
+              {'✓ '}
             </Text>
             SSH access to factorialco/factorial is working.
           </Text>
           {keyPath && <Text dimColor> Key: {keyPath}</Text>}
           <Divider />
           <Text>
-            Press{" "}
+            Press{' '}
             <Text color={BRAND_COLOR} bold>
               Enter
-            </Text>{" "}
+            </Text>{' '}
             to continue to installation
           </Text>
         </Box>
       )}
 
-      {phase === "generating" && (
+      {phase === 'generating' && (
         <Box>
           <Text color={BRAND_COLOR}>
             <Spinner type="dots" />
           </Text>
-          <Text>
-            {" "}
-            Generating new SSH key for {config.email || "dev@factorial.co"}...
-          </Text>
+          <Text> Generating new SSH key for {config.email || 'dev@factorial.co'}...</Text>
         </Box>
       )}
 
-      {phase === "instructions" && (
+      {phase === 'instructions' && (
         <Box flexDirection="column" gap={1}>
           <Text bold>New SSH key generated. Follow these steps:</Text>
 
@@ -211,12 +208,7 @@ export function SSHSetupStep() {
             <Text color={BRAND_COLOR} bold>
               Your public key:
             </Text>
-            <Box
-              borderStyle="single"
-              borderColor="gray"
-              paddingX={1}
-              marginTop={0}
-            >
+            <Box borderStyle="single" borderColor="gray" paddingX={1} marginTop={0}>
               <Text wrap="wrap">{publicKey}</Text>
             </Box>
           </Box>
@@ -224,42 +216,41 @@ export function SSHSetupStep() {
           <Box flexDirection="column">
             <Text bold>Instructions:</Text>
             <Text>
-              {"  "}1. Press{" "}
+              {'  '}1. Press{' '}
               <Text color={BRAND_COLOR} bold>
                 c
-              </Text>{" "}
+              </Text>{' '}
               to copy the public key to clipboard
               {copied && <Text color="green"> (copied!)</Text>}
             </Text>
             <Text>
-              {"  "}2. Press{" "}
+              {'  '}2. Press{' '}
               <Text color={BRAND_COLOR} bold>
                 o
-              </Text>{" "}
+              </Text>{' '}
               to open GitHub SSH keys settings
               {opened && <Text color="green"> (opened!)</Text>}
             </Text>
-            <Text dimColor>{"     "}https://github.com/settings/keys</Text>
+            <Text dimColor>{'     '}https://github.com/settings/keys</Text>
             <Text>
-              {"  "}3. Click <Text bold>"New SSH key"</Text>, paste the key, and
-              save
+              {'  '}3. Click <Text bold>"New SSH key"</Text>, paste the key, and save
             </Text>
             <Text>
-              {"  "}4. Click <Text bold>"Configure SSO"</Text> next to the key
-              and authorize <Text bold>factorialco</Text>
+              {'  '}4. Click <Text bold>"Configure SSO"</Text> next to the key and authorize{' '}
+              <Text bold>factorialco</Text>
             </Text>
             <Text>
-              {"  "}5. Press{" "}
+              {'  '}5. Press{' '}
               <Text color={BRAND_COLOR} bold>
                 v
-              </Text>{" "}
+              </Text>{' '}
               to verify access
             </Text>
           </Box>
 
           {errorMsg && (
             <Text color="red">
-              <Text bold>{"✗ "}</Text>
+              <Text bold>{'✗ '}</Text>
               {errorMsg}
             </Text>
           )}
@@ -270,21 +261,21 @@ export function SSHSetupStep() {
             <Text>
               <Text color={BRAND_COLOR} bold>
                 c
-              </Text>{" "}
+              </Text>{' '}
               copy key
             </Text>
             <Text dimColor>|</Text>
             <Text>
               <Text color={BRAND_COLOR} bold>
                 o
-              </Text>{" "}
+              </Text>{' '}
               open GitHub
             </Text>
             <Text dimColor>|</Text>
             <Text>
               <Text color={BRAND_COLOR} bold>
                 v
-              </Text>{" "}
+              </Text>{' '}
               verify access
             </Text>
             <Text dimColor>|</Text>
@@ -299,7 +290,7 @@ export function SSHSetupStep() {
         </Box>
       )}
 
-      {phase === "verifying" && (
+      {phase === 'verifying' && (
         <Box>
           <Text color={BRAND_COLOR}>
             <Spinner type="dots" />
@@ -308,39 +299,39 @@ export function SSHSetupStep() {
         </Box>
       )}
 
-      {phase === "verified" && (
+      {phase === 'verified' && (
         <Box flexDirection="column" gap={1}>
           <Text>
             <Text color="green" bold>
-              {"✓ "}
+              {'✓ '}
             </Text>
             SSH key verified! You have access to factorialco/factorial.
           </Text>
           <Text dimColor> Key: {keyPath}</Text>
           <Divider />
           <Text>
-            Press{" "}
+            Press{' '}
             <Text color={BRAND_COLOR} bold>
               Enter
-            </Text>{" "}
+            </Text>{' '}
             to continue to installation
           </Text>
         </Box>
       )}
 
-      {phase === "error" && (
+      {phase === 'error' && (
         <Box flexDirection="column" gap={1}>
           <Text color="red">
-            <Text bold>{"✗ "}</Text>
+            <Text bold>{'✗ '}</Text>
             {errorMsg}
           </Text>
           <Divider />
           <Box gap={2}>
             <Text>
-              Press{" "}
+              Press{' '}
               <Text color={BRAND_COLOR} bold>
                 r
-              </Text>{" "}
+              </Text>{' '}
               to retry
             </Text>
             <Text dimColor>|</Text>
@@ -355,5 +346,5 @@ export function SSHSetupStep() {
         </Box>
       )}
     </StepContainer>
-  );
+  )
 }

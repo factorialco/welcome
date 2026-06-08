@@ -13,8 +13,8 @@
     "dev": "tsx watch src/index.tsx",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "keywords": [
     "factorial",
@@ -58,7 +58,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "prettier": "^3.8.3",
+    "oxfmt": "^0.28.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1"
   }

@@ -1,39 +1,37 @@
-import { useState, useEffect } from "react";
-import { Box, Text, useInput } from "ink";
+import { useState, useEffect } from 'react'
+import { Box, Text, useInput } from 'ink'
 import {
   useWizard,
   SETUP_TASKS,
   BRAND_COLOR,
   agenticCliLabel,
   editorChoiceLabel,
-} from "../context/index.js";
-import { StepContainer } from "../components/StepContainer.js";
-import { Field, Divider } from "../components/UI.js";
-import { getPlatformLabel, getArch } from "../platform.js";
+} from '../context/index.js'
+import { StepContainer } from '../components/StepContainer.js'
+import { Field, Divider } from '../components/UI.js'
+import { getPlatformLabel, getArch } from '../platform.js'
 
 export function ReviewStep() {
-  const { config, goNext, goBack, goToStepAndReturn } = useWizard();
-  const [platformLabel, setPlatformLabel] = useState<string>("");
+  const { config, goNext, goBack, goToStepAndReturn } = useWizard()
+  const [platformLabel, setPlatformLabel] = useState<string>('')
 
   useEffect(() => {
-    getPlatformLabel().then((label) =>
-      setPlatformLabel(`${label} (${getArch()})`),
-    );
-  }, []);
+    getPlatformLabel().then((label) => setPlatformLabel(`${label} (${getArch()})`))
+  }, [])
 
   useInput((input, key) => {
     if (key.escape) {
-      goBack();
+      goBack()
     }
     if (key.return) {
-      goNext();
+      goNext()
     }
     // Jump to config steps: 1=Identity, 2=Tools, 3=Services
-    const num = parseInt(input);
+    const num = parseInt(input)
     if (num >= 1 && num <= 3) {
-      goToStepAndReturn(num);
+      goToStepAndReturn(num)
     }
-  });
+  })
 
   return (
     <StepContainer
@@ -49,13 +47,13 @@ export function ReviewStep() {
             </Text>
             <Field
               label="Name"
-              value={config.fullName || "(not set)"}
+              value={config.fullName || '(not set)'}
               dimValue={!config.fullName}
               color={BRAND_COLOR}
             />
             <Field
               label="Email"
-              value={config.email || "(not set)"}
+              value={config.email || '(not set)'}
               dimValue={!config.email}
               color={BRAND_COLOR}
             />
@@ -65,17 +63,13 @@ export function ReviewStep() {
             <Text color={BRAND_COLOR} bold underline>
               2. Development Tools
             </Text>
-            <Field
-              label="Version Manager"
-              value={config.versionManager}
-              color={BRAND_COLOR}
-            />
+            <Field label="Version Manager" value={config.versionManager} color={BRAND_COLOR} />
             <Field
               label="Agentic CLIs"
               value={
                 config.agenticClis.length > 0
-                  ? config.agenticClis.map(agenticCliLabel).join(", ")
-                  : "None"
+                  ? config.agenticClis.map(agenticCliLabel).join(', ')
+                  : 'None'
               }
               dimValue={config.agenticClis.length === 0}
               color={BRAND_COLOR}
@@ -84,8 +78,8 @@ export function ReviewStep() {
               label="Editors"
               value={
                 config.editors.length > 0
-                  ? config.editors.map(editorChoiceLabel).join(", ")
-                  : "None"
+                  ? config.editors.map(editorChoiceLabel).join(', ')
+                  : 'None'
               }
               dimValue={config.editors.length === 0}
               color={BRAND_COLOR}
@@ -99,51 +93,35 @@ export function ReviewStep() {
             <Text color={BRAND_COLOR} bold underline>
               Platform
             </Text>
-            <Field
-              label="OS"
-              value={platformLabel || "detecting..."}
-              color={BRAND_COLOR}
-            />
+            <Field label="OS" value={platformLabel || 'detecting...'} color={BRAND_COLOR} />
           </Box>
 
           <Box flexDirection="column">
             <Text color={BRAND_COLOR} bold underline>
               3. Services
             </Text>
-            <Field
-              label="Ngrok"
-              value={config.setupNgrok ? "Yes" : "No"}
-              color={BRAND_COLOR}
-            />
+            <Field label="Ngrok" value={config.setupNgrok ? 'Yes' : 'No'} color={BRAND_COLOR} />
             {config.setupNgrok && (
               <>
                 <Field
                   label="  Domain"
-                  value={config.ngrokDomain || "(default)"}
+                  value={config.ngrokDomain || '(default)'}
                   dimValue={!config.ngrokDomain}
                   color={BRAND_COLOR}
                 />
                 <Field
                   label="  Authtoken"
-                  value={config.ngrokAuthtoken ? "••••••••" : "(will prompt)"}
+                  value={config.ngrokAuthtoken ? '••••••••' : '(will prompt)'}
                   dimValue={!config.ngrokAuthtoken}
                   color={BRAND_COLOR}
                 />
               </>
             )}
-            <Field
-              label="Cognito"
-              value={config.setupCognito ? "Yes" : "No"}
-              color={BRAND_COLOR}
-            />
-            <Field
-              label="Restore DB"
-              value={config.restoreDb ? "Yes" : "No"}
-              color={BRAND_COLOR}
-            />
+            <Field label="Cognito" value={config.setupCognito ? 'Yes' : 'No'} color={BRAND_COLOR} />
+            <Field label="Restore DB" value={config.restoreDb ? 'Yes' : 'No'} color={BRAND_COLOR} />
             <Field
               label="Branch DBs"
-              value={config.branchSpecificDb ? "Yes" : "No"}
+              value={config.branchSpecificDb ? 'Yes' : 'No'}
               color={BRAND_COLOR}
             />
           </Box>
@@ -159,31 +137,25 @@ export function ReviewStep() {
           <Box flexDirection="column">
             {SETUP_TASKS.slice(0, 7).map((task) => {
               const skipped =
-                (task.id === 10 && !config.setupNgrok) ||
-                (task.id === 11 && !config.setupCognito);
+                (task.id === 10 && !config.setupNgrok) || (task.id === 11 && !config.setupCognito)
               return (
                 <Text key={task.id} dimColor={skipped} strikethrough={skipped}>
-                  <Text color={skipped ? "gray" : "green"}>
-                    {skipped ? "○" : "●"}{" "}
-                  </Text>
+                  <Text color={skipped ? 'gray' : 'green'}>{skipped ? '○' : '●'} </Text>
                   {task.icon} {task.name}
                 </Text>
-              );
+              )
             })}
           </Box>
           <Box flexDirection="column">
             {SETUP_TASKS.slice(7).map((task) => {
               const skipped =
-                (task.id === 10 && !config.setupNgrok) ||
-                (task.id === 11 && !config.setupCognito);
+                (task.id === 10 && !config.setupNgrok) || (task.id === 11 && !config.setupCognito)
               return (
                 <Text key={task.id} dimColor={skipped} strikethrough={skipped}>
-                  <Text color={skipped ? "gray" : "green"}>
-                    {skipped ? "○" : "●"}{" "}
-                  </Text>
+                  <Text color={skipped ? 'gray' : 'green'}>{skipped ? '○' : '●'} </Text>
                   {task.icon} {task.name}
                 </Text>
-              );
+              )
             })}
           </Box>
         </Box>
@@ -193,10 +165,10 @@ export function ReviewStep() {
 
       <Box gap={2} justifyContent="center">
         <Text>
-          Press{" "}
+          Press{' '}
           <Text color={BRAND_COLOR} bold>
             Enter
-          </Text>{" "}
+          </Text>{' '}
           to continue
         </Text>
         <Text dimColor>|</Text>
@@ -209,5 +181,5 @@ export function ReviewStep() {
         </Text>
       </Box>
     </StepContainer>
-  );
+  )
 }

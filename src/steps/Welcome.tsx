@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { Box, Text, useInput } from "ink";
-import Spinner from "ink-spinner";
+import { useState, useEffect } from 'react'
+import { Box, Text, useInput } from 'ink'
+import Spinner from 'ink-spinner'
 import {
   useWizard,
   SETUP_TASKS,
@@ -8,29 +8,26 @@ import {
   WIZARD_STEPS,
   loadSavedConfig,
   clearSavedConfig,
-} from "../context/index.js";
-import type { PreflightResult } from "../commands/index.js";
+} from '../context/index.js'
+import type { PreflightResult } from '../commands/index.js'
 
 // Factorial ASCII logo (simplified block art matching the script's style)
 const FACTORIAL_LOGO = [
-  "  ███████╗ █████╗  ██████╗████████╗ ██████╗ ██████╗ ██╗ █████╗ ██╗     ",
-  "  ██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗██║██╔══██╗██║     ",
-  "  █████╗  ███████║██║        ██║   ██║   ██║██████╔╝██║███████║██║     ",
-  "  ██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗██║██╔══██║██║     ",
-  "  ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║██║██║  ██║███████╗",
-  "  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝",
-];
+  '  ███████╗ █████╗  ██████╗████████╗ ██████╗ ██████╗ ██╗ █████╗ ██╗     ',
+  '  ██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗██║██╔══██╗██║     ',
+  '  █████╗  ███████║██║        ██║   ██║   ██║██████╔╝██║███████║██║     ',
+  '  ██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗██║██╔══██║██║     ',
+  '  ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║██║██║  ██║███████╗',
+  '  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝',
+]
 
-const STATUS_ICON: Record<
-  PreflightResult["status"],
-  { char: string; color: string }
-> = {
-  ok: { char: "✓", color: "green" },
-  warn: { char: "!", color: "yellow" },
-  fail: { char: "✗", color: "red" },
-};
+const STATUS_ICON: Record<PreflightResult['status'], { char: string; color: string }> = {
+  ok: { char: '✓', color: 'green' },
+  warn: { char: '!', color: 'yellow' },
+  fail: { char: '✗', color: 'red' },
+}
 
-type ResumeState = "checking" | "prompt" | "dismissed";
+type ResumeState = 'checking' | 'prompt' | 'dismissed'
 
 export function WelcomeStep() {
   const {
@@ -40,47 +37,47 @@ export function WelcomeStep() {
     preflightResults,
     preflightDone,
     preflightHasBlocker,
-  } = useWizard();
+  } = useWizard()
 
   // Resume state — derived directly from the saved session (no effect needed)
-  const [savedSession] = useState(() => loadSavedConfig());
+  const [savedSession] = useState(() => loadSavedConfig())
   const [resumeState, setResumeState] = useState<ResumeState>(() =>
-    savedSession && savedSession.currentStep > 0 ? "prompt" : "dismissed",
-  );
+    savedSession && savedSession.currentStep > 0 ? 'prompt' : 'dismissed'
+  )
 
   // Trigger pre-flight checks once resume prompt is resolved
   useEffect(() => {
-    if (resumeState === "dismissed") {
-      runPreflight();
+    if (resumeState === 'dismissed') {
+      runPreflight()
     }
-  }, [resumeState, runPreflight]);
+  }, [resumeState, runPreflight])
 
   useInput((input, key) => {
     // Handle resume prompt
-    if (resumeState === "prompt") {
-      if (input === "y" || input === "Y" || key.return) {
+    if (resumeState === 'prompt') {
+      if (input === 'y' || input === 'Y' || key.return) {
         if (savedSession) {
-          restoreSession(savedSession);
+          restoreSession(savedSession)
         }
-        return;
+        return
       }
-      if (input === "n" || input === "N" || key.escape) {
-        clearSavedConfig();
-        setResumeState("dismissed");
-        return;
+      if (input === 'n' || input === 'N' || key.escape) {
+        clearSavedConfig()
+        setResumeState('dismissed')
+        return
       }
-      return;
+      return
     }
 
     // Handle pre-flight results
     if (key.return && preflightDone) {
       if (preflightHasBlocker) {
-        runPreflight();
+        runPreflight()
       } else {
-        goNext();
+        goNext()
       }
     }
-  });
+  })
 
   return (
     <Box
@@ -102,24 +99,17 @@ export function WelcomeStep() {
 
       <Box justifyContent="center" marginTop={1} marginBottom={1}>
         <Text bold color={BRAND_COLOR}>
-          {"─── "}Developer Onboarding Wizard{" ───"}
+          {'─── '}Developer Onboarding Wizard{' ───'}
         </Text>
       </Box>
 
-      <Box
-        justifyContent="center"
-        flexDirection="column"
-        alignItems="center"
-        gap={0}
-      >
-        <Text dimColor>
-          This wizard will set up your complete local development
-        </Text>
+      <Box justifyContent="center" flexDirection="column" alignItems="center" gap={0}>
+        <Text dimColor>This wizard will set up your complete local development</Text>
         <Text dimColor>environment for working on the Factorial platform.</Text>
       </Box>
 
       {/* Resume prompt */}
-      {resumeState === "prompt" && savedSession && (
+      {resumeState === 'prompt' && savedSession && (
         <Box
           marginTop={1}
           flexDirection="column"
@@ -135,10 +125,9 @@ export function WelcomeStep() {
             Saved at: <Text dimColor>{savedSession.savedAt}</Text>
           </Text>
           <Text>
-            Step:{" "}
+            Step:{' '}
             <Text bold color={BRAND_COLOR}>
-              {WIZARD_STEPS[savedSession.currentStep] ??
-                `#${savedSession.currentStep}`}
+              {WIZARD_STEPS[savedSession.currentStep] ?? `#${savedSession.currentStep}`}
             </Text>
           </Text>
           {savedSession.config.fullName && (
@@ -148,7 +137,7 @@ export function WelcomeStep() {
           )}
           <Box marginTop={1}>
             <Text>
-              Resume?{" "}
+              Resume?{' '}
               <Text color={BRAND_COLOR} bold>
                 Y
               </Text>
@@ -160,14 +149,14 @@ export function WelcomeStep() {
       )}
 
       {/* 13 steps in 2 columns (only show when not prompting resume) */}
-      {resumeState === "dismissed" && (
+      {resumeState === 'dismissed' && (
         <Box marginTop={1} justifyContent="center" gap={4}>
           <Box flexDirection="column">
             {SETUP_TASKS.slice(0, 7).map((task) => (
               <Text key={task.id}>
                 <Text color={BRAND_COLOR}>{task.icon} </Text>
                 <Text dimColor>
-                  {String(task.id).padStart(2, " ")}. {task.name}
+                  {String(task.id).padStart(2, ' ')}. {task.name}
                 </Text>
               </Text>
             ))}
@@ -177,7 +166,7 @@ export function WelcomeStep() {
               <Text key={task.id}>
                 <Text color={BRAND_COLOR}>{task.icon} </Text>
                 <Text dimColor>
-                  {String(task.id).padStart(2, " ")}. {task.name}
+                  {String(task.id).padStart(2, ' ')}. {task.name}
                 </Text>
               </Text>
             ))}
@@ -186,19 +175,19 @@ export function WelcomeStep() {
       )}
 
       {/* System checks — horizontal row */}
-      {resumeState === "dismissed" && (
+      {resumeState === 'dismissed' && (
         <Box marginTop={1} justifyContent="center" gap={2}>
           <Text dimColor bold>
             System checks
           </Text>
           {preflightResults.map((r, i) => {
-            const icon = STATUS_ICON[r.status];
+            const icon = STATUS_ICON[r.status]
             return (
               <Text key={i}>
                 <Text color={icon.color}>{icon.char}</Text>
-                <Text dimColor={r.status === "ok"}> {r.name}</Text>
+                <Text dimColor={r.status === 'ok'}> {r.name}</Text>
               </Text>
-            );
+            )
           })}
           {!preflightDone && (
             <Text color={BRAND_COLOR}>
@@ -209,14 +198,14 @@ export function WelcomeStep() {
       )}
 
       {/* Action prompt */}
-      {resumeState === "dismissed" && preflightDone && (
+      {resumeState === 'dismissed' && preflightDone && (
         <Box marginTop={1} justifyContent="center">
           {!preflightHasBlocker && (
             <Text>
-              Press{" "}
+              Press{' '}
               <Text color={BRAND_COLOR} bold>
                 Enter
-              </Text>{" "}
+              </Text>{' '}
               to begin setup
             </Text>
           )}
@@ -228,5 +217,5 @@ export function WelcomeStep() {
         </Box>
       )}
     </Box>
-  );
+  )
 }

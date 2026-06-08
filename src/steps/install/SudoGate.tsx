@@ -1,12 +1,12 @@
-import { Box, Text } from "ink";
-import Spinner from "ink-spinner";
-import { BRAND_COLOR } from "../../context/index.js";
-import { StepContainer } from "../../components/StepContainer.js";
-import { isDarwin } from "../../platform.js";
+import { Box, Text } from 'ink'
+import Spinner from 'ink-spinner'
+import { BRAND_COLOR } from '../../context/index.js'
+import { StepContainer } from '../../components/StepContainer.js'
+import { isDarwin } from '../../platform.js'
 
 /** Shown while waiting for the OS administrator authentication prompt. */
 export function SudoGate() {
-  const isMac = isDarwin();
+  const isMac = isDarwin()
   return (
     <StepContainer
       title="Administrator Access Required"
@@ -32,12 +32,11 @@ export function SudoGate() {
             Important:
           </Text>
           <Text color="yellow">
-            You must have enabled <Text bold>"Root permissions"</Text> in the{" "}
+            You must have enabled <Text bold>"Root permissions"</Text> in the{' '}
             <Text bold>Self Service+</Text> application before continuing.
           </Text>
           <Text color="yellow">
-            If you haven't, press <Text bold>Ctrl+C</Text>, enable it, and
-            re-run the setup.
+            If you haven't, press <Text bold>Ctrl+C</Text>, enable it, and re-run the setup.
           </Text>
         </Box>
 
@@ -49,5 +48,5 @@ export function SudoGate() {
         </Box>
       </Box>
     </StepContainer>
-  );
+  )
 }

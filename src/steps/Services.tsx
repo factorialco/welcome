@@ -1,106 +1,100 @@
-import { useState } from "react";
-import { Box, Text, useInput } from "ink";
-import TextInput from "ink-text-input";
-import SelectInput from "ink-select-input";
-import { useWizard, BRAND_COLOR } from "../context/index.js";
-import { StepContainer } from "../components/StepContainer.js";
-import { CompletedItem } from "../components/UI.js";
+import { useState } from 'react'
+import { Box, Text, useInput } from 'ink'
+import TextInput from 'ink-text-input'
+import SelectInput from 'ink-select-input'
+import { useWizard, BRAND_COLOR } from '../context/index.js'
+import { StepContainer } from '../components/StepContainer.js'
+import { CompletedItem } from '../components/UI.js'
 
-type Phase =
-  | "ngrok"
-  | "ngrok-domain"
-  | "ngrok-token"
-  | "cognito"
-  | "db-options";
+type Phase = 'ngrok' | 'ngrok-domain' | 'ngrok-token' | 'cognito' | 'db-options'
 
 const NO_YES = [
-  { label: "No (default)", value: "no" },
-  { label: "Yes", value: "yes" },
-];
+  { label: 'No (default)', value: 'no' },
+  { label: 'Yes', value: 'yes' },
+]
 
 export function ServicesStep() {
-  const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } =
-    useWizard();
-  const [phase, setPhase] = useState<Phase>("ngrok");
-  const [dbCursor, setDbCursor] = useState(0);
+  const { config, updateConfig, goNext, goBack, returnToStep, completeReturn } = useWizard()
+  const [phase, setPhase] = useState<Phase>('ngrok')
+  const [dbCursor, setDbCursor] = useState(0)
 
   const finish = () => {
     if (returnToStep !== null) {
-      completeReturn();
+      completeReturn()
     } else {
-      goNext();
+      goNext()
     }
-  };
+  }
 
   const back = () => {
     if (returnToStep !== null) {
-      completeReturn();
+      completeReturn()
     } else {
-      goBack();
+      goBack()
     }
-  };
+  }
 
   useInput((input, key) => {
     if (key.escape) {
-      if (phase === "db-options") {
-        setPhase("cognito");
-      } else if (phase === "cognito" && !config.setupNgrok) {
-        setPhase("ngrok");
-      } else if (phase === "cognito") {
-        setPhase("ngrok-token");
-      } else if (phase === "ngrok-token") {
-        setPhase("ngrok-domain");
-      } else if (phase === "ngrok-domain") {
-        setPhase("ngrok");
+      if (phase === 'db-options') {
+        setPhase('cognito')
+      } else if (phase === 'cognito' && !config.setupNgrok) {
+        setPhase('ngrok')
+      } else if (phase === 'cognito') {
+        setPhase('ngrok-token')
+      } else if (phase === 'ngrok-token') {
+        setPhase('ngrok-domain')
+      } else if (phase === 'ngrok-domain') {
+        setPhase('ngrok')
       } else {
-        back();
+        back()
       }
-      return;
+      return
     }
 
     // DB options phase keyboard handling
-    if (phase === "db-options") {
-      if (key.upArrow || input === "k") {
-        setDbCursor(0);
+    if (phase === 'db-options') {
+      if (key.upArrow || input === 'k') {
+        setDbCursor(0)
       }
-      if (key.downArrow || input === "j") {
-        setDbCursor(1);
+      if (key.downArrow || input === 'j') {
+        setDbCursor(1)
       }
-      if (input === " ") {
+      if (input === ' ') {
         if (dbCursor === 0) {
-          updateConfig({ restoreDb: !config.restoreDb });
+          updateConfig({ restoreDb: !config.restoreDb })
         } else {
-          updateConfig({ branchSpecificDb: !config.branchSpecificDb });
+          updateConfig({ branchSpecificDb: !config.branchSpecificDb })
         }
       }
       if (key.return) {
-        finish();
+        finish()
       }
     }
-  });
+  })
 
   const handleNgrok = (item: { value: string }) => {
-    const yes = item.value === "yes";
-    updateConfig({ setupNgrok: yes });
+    const yes = item.value === 'yes'
+    updateConfig({ setupNgrok: yes })
     if (yes) {
-      setPhase("ngrok-domain");
+      setPhase('ngrok-domain')
     } else {
-      setPhase("cognito");
+      setPhase('cognito')
     }
-  };
+  }
 
   const handleNgrokDomain = () => {
-    setPhase("ngrok-token");
-  };
+    setPhase('ngrok-token')
+  }
 
   const handleNgrokToken = () => {
-    setPhase("cognito");
-  };
+    setPhase('cognito')
+  }
 
   const handleCognito = (item: { value: string }) => {
-    updateConfig({ setupCognito: item.value === "yes" });
-    setPhase("db-options");
-  };
+    updateConfig({ setupCognito: item.value === 'yes' })
+    setPhase('db-options')
+  }
 
   return (
     <StepContainer
@@ -109,41 +103,29 @@ export function ServicesStep() {
     >
       <Box flexDirection="column" gap={1}>
         {/* Show completed items as we progress */}
-        {phase !== "ngrok" && (
+        {phase !== 'ngrok' && (
+          <CompletedItem label="Ngrok" value={config.setupNgrok ? 'Yes' : 'No'} />
+        )}
+        {config.setupNgrok && !['ngrok', 'ngrok-domain'].includes(phase) && (
+          <CompletedItem label="Ngrok domain" value={config.ngrokDomain || '(default)'} />
+        )}
+        {config.setupNgrok && !['ngrok', 'ngrok-domain', 'ngrok-token'].includes(phase) && (
           <CompletedItem
-            label="Ngrok"
-            value={config.setupNgrok ? "Yes" : "No"}
+            label="Ngrok token"
+            value={config.ngrokAuthtoken ? '••••••••' : '(will prompt later)'}
           />
         )}
-        {config.setupNgrok && !["ngrok", "ngrok-domain"].includes(phase) && (
-          <CompletedItem
-            label="Ngrok domain"
-            value={config.ngrokDomain || "(default)"}
-          />
-        )}
-        {config.setupNgrok &&
-          !["ngrok", "ngrok-domain", "ngrok-token"].includes(phase) && (
-            <CompletedItem
-              label="Ngrok token"
-              value={config.ngrokAuthtoken ? "••••••••" : "(will prompt later)"}
-            />
-          )}
-        {phase === "db-options" && (
-          <CompletedItem
-            label="Cognito"
-            value={config.setupCognito ? "Yes" : "No"}
-          />
+        {phase === 'db-options' && (
+          <CompletedItem label="Cognito" value={config.setupCognito ? 'Yes' : 'No'} />
         )}
 
         {/* Ngrok question */}
-        {phase === "ngrok" && (
+        {phase === 'ngrok' && (
           <Box flexDirection="column" gap={1}>
             <Text color={BRAND_COLOR} bold>
               Would you like to configure Ngrok tunneling?
             </Text>
-            <Text dimColor>
-              Ngrok provides HTTPS tunnels for local development and webhooks.
-            </Text>
+            <Text dimColor>Ngrok provides HTTPS tunnels for local development and webhooks.</Text>
             <Box marginLeft={2}>
               <SelectInput items={NO_YES} onSelect={handleNgrok} />
             </Box>
@@ -151,13 +133,13 @@ export function ServicesStep() {
         )}
 
         {/* Ngrok domain */}
-        {phase === "ngrok-domain" && (
+        {phase === 'ngrok-domain' && (
           <Box flexDirection="column" gap={1}>
             <Text color={BRAND_COLOR} bold>
               Enter your Ngrok domain:
             </Text>
             <Box marginLeft={2} gap={1}>
-              <Text color={BRAND_COLOR}>{"> "}</Text>
+              <Text color={BRAND_COLOR}>{'> '}</Text>
               <TextInput
                 value={config.ngrokDomain}
                 onChange={(v) => updateConfig({ ngrokDomain: v })}
@@ -170,16 +152,14 @@ export function ServicesStep() {
         )}
 
         {/* Ngrok authtoken */}
-        {phase === "ngrok-token" && (
+        {phase === 'ngrok-token' && (
           <Box flexDirection="column" gap={1}>
             <Text color={BRAND_COLOR} bold>
               Enter your Ngrok authtoken:
             </Text>
-            <Text dimColor>
-              Find it at https://dashboard.ngrok.com/get-started/your-authtoken
-            </Text>
+            <Text dimColor>Find it at https://dashboard.ngrok.com/get-started/your-authtoken</Text>
             <Box marginLeft={2} gap={1}>
-              <Text color={BRAND_COLOR}>{"> "}</Text>
+              <Text color={BRAND_COLOR}>{'> '}</Text>
               <TextInput
                 value={config.ngrokAuthtoken}
                 onChange={(v) => updateConfig({ ngrokAuthtoken: v })}
@@ -193,17 +173,13 @@ export function ServicesStep() {
         )}
 
         {/* Cognito */}
-        {phase === "cognito" && (
+        {phase === 'cognito' && (
           <Box flexDirection="column" gap={1}>
             <Text color={BRAND_COLOR} bold>
               Would you like to provision Cognito authentication?
             </Text>
-            <Text dimColor>
-              Sets up KMS, IAM, Lambda, and a Cognito User Pool.
-            </Text>
-            <Text dimColor>
-              Only needed for authentication feature work. Default: No
-            </Text>
+            <Text dimColor>Sets up KMS, IAM, Lambda, and a Cognito User Pool.</Text>
+            <Text dimColor>Only needed for authentication feature work. Default: No</Text>
             <Box marginLeft={2}>
               <SelectInput items={NO_YES} onSelect={handleCognito} />
             </Box>
@@ -211,7 +187,7 @@ export function ServicesStep() {
         )}
 
         {/* DB options */}
-        {phase === "db-options" && (
+        {phase === 'db-options' && (
           <Box flexDirection="column" gap={1}>
             <Text color={BRAND_COLOR} bold>
               Database options:
@@ -220,30 +196,24 @@ export function ServicesStep() {
             <Box marginLeft={2} flexDirection="column">
               {[
                 {
-                  key: "restoreDb" as const,
-                  label: "Restore database from backup",
-                  hint: "recommended for first setup",
+                  key: 'restoreDb' as const,
+                  label: 'Restore database from backup',
+                  hint: 'recommended for first setup',
                 },
                 {
-                  key: "branchSpecificDb" as const,
-                  label: "Branch-specific databases",
-                  hint: "separate DB per git branch",
+                  key: 'branchSpecificDb' as const,
+                  label: 'Branch-specific databases',
+                  hint: 'separate DB per git branch',
                 },
               ].map((opt, i) => (
                 <Box key={opt.key} gap={1}>
-                  <Text
-                    color={dbCursor === i ? BRAND_COLOR : "white"}
-                    bold={dbCursor === i}
-                  >
-                    {dbCursor === i ? ">" : " "}
+                  <Text color={dbCursor === i ? BRAND_COLOR : 'white'} bold={dbCursor === i}>
+                    {dbCursor === i ? '>' : ' '}
                   </Text>
-                  <Text color={config[opt.key] ? "green" : "gray"}>
-                    {config[opt.key] ? "[x]" : "[ ]"}
+                  <Text color={config[opt.key] ? 'green' : 'gray'}>
+                    {config[opt.key] ? '[x]' : '[ ]'}
                   </Text>
-                  <Text
-                    color={dbCursor === i ? "white" : "gray"}
-                    bold={dbCursor === i}
-                  >
+                  <Text color={dbCursor === i ? 'white' : 'gray'} bold={dbCursor === i}>
                     {opt.label}
                   </Text>
                   <Text dimColor>({opt.hint})</Text>
@@ -252,13 +222,12 @@ export function ServicesStep() {
             </Box>
 
             <Text dimColor>
-              <Text color="gray">j/k</Text> navigate{" "}
-              <Text color="gray">Space</Text> toggle{" "}
+              <Text color="gray">j/k</Text> navigate <Text color="gray">Space</Text> toggle{' '}
               <Text color="gray">Enter</Text> continue
             </Text>
           </Box>
         )}
       </Box>
     </StepContainer>
-  );
+  )
 }

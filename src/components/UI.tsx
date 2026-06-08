@@ -1,17 +1,17 @@
-import React from "react";
-import { Box, Text } from "ink";
-import { BRAND_COLOR } from "../context/index.js";
+import React from 'react'
+import { Box, Text } from 'ink'
+import { BRAND_COLOR } from '../context/index.js'
 
 export function Field({
   label,
   value,
-  color = "green",
+  color = 'green',
   dimValue = false,
 }: {
-  label: string;
-  value: string;
-  color?: string;
-  dimValue?: boolean;
+  label: string
+  value: string
+  color?: string
+  dimValue?: boolean
 }) {
   return (
     <Text>
@@ -20,68 +20,62 @@ export function Field({
       </Text>
       <Text dimColor={dimValue}>{value}</Text>
     </Text>
-  );
+  )
 }
 
-export function CompletedItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+export function CompletedItem({ label, value }: { label: string; value: string }) {
   return (
     <Text>
       <Text color="green" bold>
-        {"✓ "}
+        {'✓ '}
       </Text>
       <Text>{label}: </Text>
       <Text bold color={BRAND_COLOR}>
         {value}
       </Text>
     </Text>
-  );
+  )
 }
 
-export function Divider({ color = "gray" }: { color?: string }) {
+export function Divider({ color = 'gray' }: { color?: string }) {
   return (
     <Box>
       <Text color={color} dimColor>
-        {"─".repeat(60)}
+        {'─'.repeat(60)}
       </Text>
     </Box>
-  );
+  )
 }
 
 export function SuccessCheck({ text }: { text: string }) {
   return (
     <Text>
       <Text color="green" bold>
-        {"✓ "}
+        {'✓ '}
       </Text>
       <Text>{text}</Text>
     </Text>
-  );
+  )
 }
 
 export function PendingDot({ text }: { text: string }) {
   return (
     <Text>
-      <Text color="gray">{"○ "}</Text>
+      <Text color="gray">{'○ '}</Text>
       <Text dimColor>{text}</Text>
     </Text>
-  );
+  )
 }
 
 export function ErrorX({ text }: { text: string }) {
   return (
     <Text>
       <Text color="red" bold>
-        {"✗ "}
+        {'✗ '}
       </Text>
       <Text color="red">{text}</Text>
     </Text>
-  );
+  )
 }
 
 export function ProgressBar({
@@ -90,13 +84,13 @@ export function ProgressBar({
   color = BRAND_COLOR,
   label,
 }: {
-  percent: number;
-  width?: number;
-  color?: string;
-  label?: string;
+  percent: number
+  width?: number
+  color?: string
+  label?: string
 }) {
-  const filled = Math.round((percent / 100) * width);
-  const empty = width - filled;
+  const filled = Math.round((percent / 100) * width)
+  const empty = width - filled
   return (
     <Box gap={1}>
       {label && (
@@ -105,13 +99,13 @@ export function ProgressBar({
         </Box>
       )}
       <Text color={color}>
-        {"█".repeat(filled)}
-        <Text dimColor>{"░".repeat(empty)}</Text>
+        {'█'.repeat(filled)}
+        <Text dimColor>{'░'.repeat(empty)}</Text>
       </Text>
       <Text color={color} bold>
-        {" "}
+        {' '}
         {percent.toFixed(0)}%
       </Text>
     </Box>
-  );
+  )
 }
