@@ -55,10 +55,11 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",
-    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "oxfmt": "^0.28.0",
+    "eslint-plugin-unused-imports": "^4.0.0",
+    "globals": "^17.6.0",
+    "oxfmt": "0.28.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1"
   }
