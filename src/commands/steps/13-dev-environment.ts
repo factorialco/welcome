@@ -1,6 +1,6 @@
 import { type SetupConfig } from "../../context/index.js";
 import { getLibBuildFlags, isDarwin, isLinux } from "../../platform.js";
-import { BUNDLER_VERSION, REPO_PATH } from "../constants.js";
+import { BUNDLER_VERSION, PNPM_VERSION, REPO_PATH } from "../constants.js";
 import {
   getErrorMessage,
   sh,
@@ -19,7 +19,9 @@ export async function runStep13(
   try {
     // 0. Install yarn/pnpm and run pnpm i
     onProgress(0, "Installing yarn and pnpm globally...");
-    await sh("npm install --global yarn pnpm", { interactive: true });
+    await sh(`npm install --global yarn pnpm@${PNPM_VERSION}`, {
+      interactive: true,
+    });
 
     onProgress(1, "Running pnpm install...");
     await sh("pnpm i", { cwd: REPO_PATH, interactive: true });
@@ -121,7 +123,7 @@ export async function runStep13(
       "Starting Conductor services (conductor-postgres, conductor)...",
     );
     const conductorUp = await sh(
-      `direnv exec "${composeCwd}" ${composeCmd} --profile conductor up -d conductor-postgres conductor`,
+      `direnv exec "${composeCwd}" ${composeCmd} up -d conductor-postgres conductor`,
       { cwd: composeCwd, interactive: true, env: { REPO_ROOT: REPO_PATH } },
     );
     if (conductorUp.code !== 0) {
