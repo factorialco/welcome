@@ -45,6 +45,7 @@ const LOCAL_AWS_PROFILE = 'development'
 const LOCAL_AWS_DEFAULT_REGION = 'eu-central-1'
 const CONDUCTOR_ECR_REGISTRY = '771567148620.dkr.ecr.eu-central-1.amazonaws.com'
 const BUNDLER_VERSION = '2.5.11'
+const PNPM_VERSION = '11.5.2'
 const PERSONAL_ENV_RC_PATH = path.join(REPO_PATH, '.envrc.personal')
 
 const STATIC_HOSTS = [
@@ -1379,7 +1380,9 @@ export async function runStep13(
   try {
     // 0. Install yarn/pnpm and run pnpm i
     onProgress(0, 'Installing yarn and pnpm globally...')
-    await sh('npm install --global yarn pnpm', { interactive: true })
+    await sh(`npm install --global yarn pnpm@${PNPM_VERSION}`, {
+      interactive: true
+    })
 
     onProgress(1, 'Running pnpm install...')
     await sh('pnpm i', { cwd: REPO_PATH, interactive: true })
