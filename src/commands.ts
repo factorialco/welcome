@@ -779,8 +779,8 @@ export async function runStep5(
       }
 
       // 6. Install rust specific version
-      onProgress(5, 'Installing Rust 1.88.0...')
-      await sh('mise use -g rust@1.88.0')
+      onProgress(5, 'Installing Rust 1.96.0...')
+      await sh('mise use -g rust@1.96.0')
 
       // 7. Install all versions from repo
       onProgress(6, 'Installing all versions from .tool-versions...')
@@ -803,7 +803,7 @@ export async function runStep5(
       }
 
       onProgress(5, 'Installing Rust...')
-      await sh('asdf install rust', { env: { ASDF_RUST_VERSION: '1.88.0' } })
+      await sh('asdf install rust', { env: { ASDF_RUST_VERSION: '1.96.0' } })
 
       onProgress(6, 'Installing all versions from .tool-versions...')
       await sh('asdf install', { cwd: REPO_PATH, interactive: true })
