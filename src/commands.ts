@@ -1472,7 +1472,7 @@ export async function runStep13(
     // the main `up` above.)
     onProgress(6, 'Starting Conductor services (conductor-postgres, conductor)...')
     const conductorUp = await sh(
-      `direnv exec "${composeCwd}" ${composeCmd} --profile conductor up -d conductor-postgres conductor`,
+      `direnv exec "${composeCwd}" ${composeCmd} up -d conductor-postgres conductor`,
       { cwd: composeCwd, interactive: true, env: { REPO_ROOT: REPO_PATH } }
     )
     if (conductorUp.code !== 0) {
