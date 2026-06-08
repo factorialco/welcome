@@ -1,0 +1,12 @@
+# Pre-commit hooks to catch formatting issues before they reach CI.
+# See: https://github.com/evilmartians/lefthook
+#
+# Hooks auto-install on `npm install` (via the "prepare" script).
+# To install manually: npx lefthook install
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob: "*.{ts,tsx}"
+      run: npx oxfmt --check {staged_files}
