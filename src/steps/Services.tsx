@@ -1,20 +1,16 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
 import SelectInput from 'ink-select-input'
-import { useWizard, BRAND_COLOR } from '../context.js'
+import { useWizard, BRAND_COLOR } from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
+import { CompletedItem } from '../components/UI.js'
 
 type Phase = 'ngrok' | 'ngrok-domain' | 'ngrok-token' | 'cognito' | 'db-options'
 
-const YES_NO = [
-  { label: 'Yes (recommended)', value: 'yes' },
-  { label: 'No', value: 'no' }
-]
-
 const NO_YES = [
   { label: 'No (default)', value: 'no' },
-  { label: 'Yes', value: 'yes' }
+  { label: 'Yes', value: 'yes' },
 ]
 
 export function ServicesStep() {
@@ -99,18 +95,6 @@ export function ServicesStep() {
     updateConfig({ setupCognito: item.value === 'yes' })
     setPhase('db-options')
   }
-
-  const CompletedItem = ({ label, value }: { label: string; value: string }) => (
-    <Text>
-      <Text color="green" bold>
-        {'✓ '}
-      </Text>
-      <Text>{label}: </Text>
-      <Text bold color={BRAND_COLOR}>
-        {value}
-      </Text>
-    </Text>
-  )
 
   return (
     <StepContainer
@@ -214,13 +198,13 @@ export function ServicesStep() {
                 {
                   key: 'restoreDb' as const,
                   label: 'Restore database from backup',
-                  hint: 'recommended for first setup'
+                  hint: 'recommended for first setup',
                 },
                 {
                   key: 'branchSpecificDb' as const,
                   label: 'Branch-specific databases',
-                  hint: 'separate DB per git branch'
-                }
+                  hint: 'separate DB per git branch',
+                },
               ].map((opt, i) => (
                 <Box key={opt.key} gap={1}>
                   <Text color={dbCursor === i ? BRAND_COLOR : 'white'} bold={dbCursor === i}>

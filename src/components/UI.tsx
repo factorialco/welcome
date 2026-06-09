@@ -1,12 +1,12 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import { BRAND_COLOR } from '../context.js'
+import { BRAND_COLOR } from '../context/index.js'
 
 export function Field({
   label,
   value,
   color = 'green',
-  dimValue = false
+  dimValue = false,
 }: {
   label: string
   value: string
@@ -19,6 +19,20 @@ export function Field({
         {label.padEnd(20)}
       </Text>
       <Text dimColor={dimValue}>{value}</Text>
+    </Text>
+  )
+}
+
+export function CompletedItem({ label, value }: { label: string; value: string }) {
+  return (
+    <Text>
+      <Text color="green" bold>
+        {'✓ '}
+      </Text>
+      <Text>{label}: </Text>
+      <Text bold color={BRAND_COLOR}>
+        {value}
+      </Text>
     </Text>
   )
 }
@@ -68,7 +82,7 @@ export function ProgressBar({
   percent,
   width = 30,
   color = BRAND_COLOR,
-  label
+  label,
 }: {
   percent: number
   width?: number

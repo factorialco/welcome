@@ -9,7 +9,8 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"] // Add this line to include Node.js types
   },
   "include": ["src"]
 }
