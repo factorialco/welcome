@@ -1,6 +1,5 @@
-import React from 'react'
 import { Box } from 'ink'
-import { useWizard, WizardProvider } from './context.js'
+import { useWizard, WizardProvider } from './context/index.js'
 import { Header } from './components/Header.js'
 import { Footer } from './components/Footer.js'
 import { WelcomeStep } from './steps/Welcome.js'
@@ -23,7 +22,7 @@ function WizardContent() {
     <ReviewStep key="review" />,
     <SSHSetupStep key="ssh-setup" />,
     <AWSSetupStep key="aws-setup" />,
-    <InstallStep key="install" />
+    <InstallStep key="install" />,
   ]
 
   return (

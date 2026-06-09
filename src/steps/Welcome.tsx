@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import Spinner from 'ink-spinner'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, WIZARD_STEPS, loadSavedConfig, clearSavedConfig } from '../context.js'
-import type { PreflightResult } from '../commands.js'
+import {
+  useWizard,
+  SETUP_TASKS,
+  BRAND_COLOR,
+  WIZARD_STEPS,
+  loadSavedConfig,
+  clearSavedConfig,
+} from '../context/index.js'
+import type { PreflightResult } from '../commands/index.js'
 
 // Factorial ASCII logo (simplified block art matching the script's style)
 const FACTORIAL_LOGO = [
@@ -11,31 +18,32 @@ const FACTORIAL_LOGO = [
   '  █████╗  ███████║██║        ██║   ██║   ██║██████╔╝██║███████║██║     ',
   '  ██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗██║██╔══██║██║     ',
   '  ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║██║██║  ██║███████╗',
-  '  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝'
+  '  ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝',
 ]
 
 const STATUS_ICON: Record<PreflightResult['status'], { char: string; color: string }> = {
   ok: { char: '✓', color: 'green' },
   warn: { char: '!', color: 'yellow' },
-  fail: { char: '✗', color: 'red' }
+  fail: { char: '✗', color: 'red' },
 }
 
 type ResumeState = 'checking' | 'prompt' | 'dismissed'
 
 export function WelcomeStep() {
-  const { goNext, restoreSession, runPreflight, preflightResults, preflightDone, preflightHasBlocker } = useWizard()
+  const {
+    goNext,
+    restoreSession,
+    runPreflight,
+    preflightResults,
+    preflightDone,
+    preflightHasBlocker,
+  } = useWizard()
 
-  // Resume state
-  const [resumeState, setResumeState] = useState<ResumeState>('checking')
+  // Resume state — derived directly from the saved session (no effect needed)
   const [savedSession] = useState(() => loadSavedConfig())
-
-  useEffect(() => {
-    if (savedSession && savedSession.currentStep > 0) {
-      setResumeState('prompt')
-    } else {
-      setResumeState('dismissed')
-    }
-  }, [savedSession])
+  const [resumeState, setResumeState] = useState<ResumeState>(() =>
+    savedSession && savedSession.currentStep > 0 ? 'prompt' : 'dismissed'
+  )
 
   // Trigger pre-flight checks once resume prompt is resolved
   useEffect(() => {
@@ -102,13 +110,25 @@ export function WelcomeStep() {
 
       {/* Resume prompt */}
       {resumeState === 'prompt' && savedSession && (
-        <Box marginTop={1} flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={2} paddingY={1}>
-          <Text color="yellow" bold>Previous session found</Text>
+        <Box
+          marginTop={1}
+          flexDirection="column"
+          borderStyle="single"
+          borderColor="yellow"
+          paddingX={2}
+          paddingY={1}
+        >
+          <Text color="yellow" bold>
+            Previous session found
+          </Text>
           <Text>
             Saved at: <Text dimColor>{savedSession.savedAt}</Text>
           </Text>
           <Text>
-            Step: <Text bold color={BRAND_COLOR}>{WIZARD_STEPS[savedSession.currentStep] ?? `#${savedSession.currentStep}`}</Text>
+            Step:{' '}
+            <Text bold color={BRAND_COLOR}>
+              {WIZARD_STEPS[savedSession.currentStep] ?? `#${savedSession.currentStep}`}
+            </Text>
           </Text>
           {savedSession.config.fullName && (
             <Text>
@@ -117,7 +137,10 @@ export function WelcomeStep() {
           )}
           <Box marginTop={1}>
             <Text>
-              Resume? <Text color={BRAND_COLOR} bold>Y</Text>
+              Resume?{' '}
+              <Text color={BRAND_COLOR} bold>
+                Y
+              </Text>
               <Text dimColor>/</Text>
               <Text>n</Text>
             </Text>
@@ -154,13 +177,15 @@ export function WelcomeStep() {
       {/* System checks — horizontal row */}
       {resumeState === 'dismissed' && (
         <Box marginTop={1} justifyContent="center" gap={2}>
-          <Text dimColor bold>System checks</Text>
+          <Text dimColor bold>
+            System checks
+          </Text>
           {preflightResults.map((r, i) => {
             const icon = STATUS_ICON[r.status]
             return (
               <Text key={i}>
                 <Text color={icon.color}>{icon.char}</Text>
-                <Text dimColor={r.status === 'ok'}>{' '}{r.name}</Text>
+                <Text dimColor={r.status === 'ok'}> {r.name}</Text>
               </Text>
             )
           })}
@@ -171,6 +196,21 @@ export function WelcomeStep() {
           )}
         </Box>
       )}
+
+      {/* Detail messages for any non-ok checks */}
+      {resumeState === 'dismissed' &&
+        preflightDone &&
+        preflightResults.some((r) => r.status !== 'ok') && (
+          <Box marginTop={1} flexDirection="column" alignItems="center">
+            {preflightResults
+              .filter((r) => r.status !== 'ok')
+              .map((r, i) => (
+                <Text key={i} color={STATUS_ICON[r.status].color}>
+                  {STATUS_ICON[r.status].char} {r.name}: <Text dimColor>{r.message}</Text>
+                </Text>
+              ))}
+          </Box>
+        )}
 
       {/* Action prompt */}
       {resumeState === 'dismissed' && preflightDone && (
@@ -186,9 +226,7 @@ export function WelcomeStep() {
           )}
           {preflightHasBlocker && (
             <Text color="red">
-              Fix the issue above, then press{' '}
-              <Text bold>Enter</Text>{' '}
-              to retry
+              Fix the issue above, then press <Text bold>Enter</Text> to retry
             </Text>
           )}
         </Box>

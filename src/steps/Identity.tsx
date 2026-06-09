@@ -1,14 +1,19 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
-import { useWizard, BRAND_COLOR } from '../context.js'
+import { useWizard, BRAND_COLOR } from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
 
 type IdentityField = 'fullName' | 'email'
 
-const FIELDS: { key: IdentityField; label: string; placeholder: string; icon: string }[] = [
+const FIELDS: {
+  key: IdentityField
+  label: string
+  placeholder: string
+  icon: string
+}[] = [
   { key: 'fullName', label: 'Full Name', placeholder: 'Jane Doe', icon: '>' },
-  { key: 'email', label: 'Email', placeholder: 'jane@factorial.co', icon: '>' }
+  { key: 'email', label: 'Email', placeholder: 'jane@factorial.co', icon: '>' },
 ]
 
 export function IdentityStep() {
@@ -91,7 +96,10 @@ export function IdentityStep() {
                     />
                   </Box>
                   {error && (
-                    <Text color="red">{'      '}{error}</Text>
+                    <Text color="red">
+                      {'      '}
+                      {error}
+                    </Text>
                   )}
                 </Box>
               )}

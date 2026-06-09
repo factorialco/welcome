@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import SelectInput from 'ink-select-input'
 import {
@@ -8,24 +8,27 @@ import {
   type AgenticCli,
   type EditorChoice,
   agenticCliLabel,
-  editorChoiceLabel
-} from '../context.js'
+} from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
+import { CompletedItem } from '../components/UI.js'
 
 const VM_OPTIONS = [
-  { label: 'mise  (recommended — fast, Rust-based)', value: 'mise' as VersionManager },
-  { label: 'asdf  (classic — shell-based)', value: 'asdf' as VersionManager }
+  {
+    label: 'mise  (recommended — fast, Rust-based)',
+    value: 'mise' as VersionManager,
+  },
+  { label: 'asdf  (classic — shell-based)', value: 'asdf' as VersionManager },
 ]
 
 const CLI_OPTIONS: { key: AgenticCli; label: string; hint: string }[] = [
   { key: 'opencode', label: 'OpenCode', hint: 'recommended' },
   { key: 'claude', label: 'Claude Code', hint: 'Anthropic' },
-  { key: 'codex', label: 'Codex', hint: 'OpenAI' }
+  { key: 'codex', label: 'Codex', hint: 'OpenAI' },
 ]
 
 const EDITOR_OPTIONS: { key: EditorChoice; label: string; hint: string }[] = [
   { key: 'cursor', label: 'Cursor', hint: 'AI-native, VS Code fork' },
-  { key: 'vscode', label: 'VS Code', hint: 'classic' }
+  { key: 'vscode', label: 'VS Code', hint: 'classic' },
 ]
 
 type Phase = 'version-manager' | 'agentic-clis' | 'editors'
@@ -112,18 +115,6 @@ export function ToolsStep() {
     setPhase('agentic-clis')
   }
 
-  const CompletedItem = ({ label, value }: { label: string; value: string }) => (
-    <Text>
-      <Text color="green" bold>
-        {'✓ '}
-      </Text>
-      <Text>{label}: </Text>
-      <Text bold color={BRAND_COLOR}>
-        {value}
-      </Text>
-    </Text>
-  )
-
   return (
     <StepContainer
       title="Development Tools"
@@ -199,7 +190,10 @@ export function ToolsStep() {
           <Text color={BRAND_COLOR} bold>
             Which code editors would you like to install?
           </Text>
-          <Text dimColor>We'll install recommended extensions for each selected editor.</Text>
+          <Text dimColor>
+            We'll install recommended extensions for each selected editor. Select none to skip
+            editor setup.
+          </Text>
 
           <Box marginLeft={2} flexDirection="column">
             {EDITOR_OPTIONS.map((opt, i) => (

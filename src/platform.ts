@@ -283,9 +283,7 @@ const SPECIAL_INSTALL_COMMANDS_APT: Record<string, string[]> = {
     'sudo apt-get update',
     'sudo apt-get install -y gh',
   ],
-  mise: [
-    'curl https://mise.jdx.dev/install.sh | sh',
-  ],
+  mise: ['curl https://mise.jdx.dev/install.sh | sh'],
   gitleaks: [
     'GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r .tag_name | tr -d v) && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_$(dpkg --print-architecture | sed s/amd64/x64/).tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks',
   ],
@@ -295,21 +293,15 @@ const SPECIAL_INSTALL_COMMANDS_APT: Record<string, string[]> = {
   watchman: [
     // Skip watchman on Linux if not easily available - it's optional
   ],
-  semgrep: [
-    'pip3 install semgrep || python3 -m pip install semgrep',
-  ],
+  semgrep: ['pip3 install semgrep || python3 -m pip install semgrep'],
   yq: [
     'YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | jq -r .tag_name) && sudo curl -sSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_$(dpkg --print-architecture)" -o /usr/local/bin/yq && sudo chmod +x /usr/local/bin/yq',
   ],
 }
 
 const SPECIAL_INSTALL_COMMANDS_PACMAN: Record<string, string[]> = {
-  mise: [
-    'curl https://mise.jdx.dev/install.sh | sh',
-  ],
-  semgrep: [
-    'pip install semgrep || python -m pip install semgrep',
-  ],
+  mise: ['curl https://mise.jdx.dev/install.sh | sh'],
+  semgrep: ['pip install semgrep || python -m pip install semgrep'],
 }
 
 export type PackageInstallPlan = {
@@ -496,14 +488,9 @@ export async function getDockerNativeInstallCommands(): Promise<string[]> {
 /** Get command to enable Docker service on boot */
 export async function getDockerServiceCommands(): Promise<string[]> {
   if (isDarwin()) {
-    return [
-      'brew services start colima 2>/dev/null || true',
-    ]
+    return ['brew services start colima 2>/dev/null || true']
   }
-  return [
-    'sudo systemctl enable docker',
-    'sudo systemctl start docker',
-  ]
+  return ['sudo systemctl enable docker', 'sudo systemctl start docker']
 }
 
 // ── GUI App Installation (casks equivalent) ────────────
