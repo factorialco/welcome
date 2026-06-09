@@ -1822,10 +1822,10 @@ async function checkAdmin(): Promise<PreflightResult> {
   if (result.code !== 0) {
     return {
       name: 'Admin rights',
-      status: 'warn',
+      status: 'fail',
       message:
         'Not an Administrator — required for Homebrew & install steps. ' +
-        'Request it from IT (Factorial MDM); if just granted, log out and back in or reboot. ' +
+        'Request it from IT (Factorial MDM); once granted, log out and back in or reboot for it to take effect. ' +
         'Do NOT run this with sudo.'
     }
   }
