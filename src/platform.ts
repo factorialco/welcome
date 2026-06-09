@@ -438,7 +438,14 @@ export async function getLibBuildFlags(
     ldflags: zstdLibDir,
     cppflags: zstdIncDir,
     optDir: '/usr',
-    libraryPath: zstdLibDir.replace(/^-L/, '').trim() || '/usr/lib',
+    // pkg-config may emit several `-L` dirs; turn them into a colon-separated
+    // LIBRARY_PATH rather than stripping only the first flag.
+    libraryPath:
+      zstdLibDir
+        .split(/\s+/)
+        .map((s) => s.replace(/^-L/, ''))
+        .filter(Boolean)
+        .join(':') || '/usr/lib',
   }
 }
 

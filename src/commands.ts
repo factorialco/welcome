@@ -1555,13 +1555,9 @@ export async function runStep13(
     //     not just that `gem install` reported success.
     await sh(`bundle exec ruby -e "require 'mysql2'"`, { cwd: backendCwd, check: true })
 
-    // 7b. The development database exists and is reachable.
-    await sh(
-      `bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')"`,
-      { cwd: backendCwd, check: true }
-    )
-
-    // 7c. No migrations are left pending.
+    // 7b. The database is reachable AND has no pending migrations. This single
+    //     rake task must connect to read schema_migrations, so it covers both
+    //     "DB exists/reachable" and "schema is up to date" in one Rails boot.
     await sh('bundle exec rails db:abort_if_pending_migrations', { cwd: backendCwd, check: true })
 
     // 8. Done — no editor or browser opened; the finished pane shows next steps
