@@ -197,6 +197,21 @@ export function WelcomeStep() {
         </Box>
       )}
 
+      {/* Detail messages for any non-ok checks */}
+      {resumeState === 'dismissed' &&
+        preflightDone &&
+        preflightResults.some((r) => r.status !== 'ok') && (
+          <Box marginTop={1} flexDirection="column" alignItems="center">
+            {preflightResults
+              .filter((r) => r.status !== 'ok')
+              .map((r, i) => (
+                <Text key={i} color={STATUS_ICON[r.status].color}>
+                  {STATUS_ICON[r.status].char} {r.name}: <Text dimColor>{r.message}</Text>
+                </Text>
+              ))}
+          </Box>
+        )}
+
       {/* Action prompt */}
       {resumeState === 'dismissed' && preflightDone && (
         <Box marginTop={1} justifyContent="center">
