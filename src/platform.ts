@@ -405,17 +405,26 @@ export function getAurInstallCommand(packages: string[]): string {
 
 // ── Library Path Helpers ───────────────────────────────
 
-/** Get library include/link flags for compiling native gems (e.g., mysql2) */
+/**
+ * Get library include/link flags for compiling native gems (e.g., mysql2).
+ *
+ * `libraryPath` is the directory holding the shared libs (libzstd, etc.); it is
+ * exported as `LIBRARY_PATH` during the build as a safety net so the linker
+ * finds them even when the explicit `--with-ldflags` aren't honoured.
+ */
 export async function getLibBuildFlags(
   shFn: (cmd: string) => Promise<{ code: number; stdout: string; stderr: string }>
-): Promise<{ ldflags: string; cppflags: string; optDir: string }> {
+): Promise<{ ldflags: string; cppflags: string; optDir: string; libraryPath: string }> {
   if (isDarwin()) {
     const zstdPrefix = (await shFn('brew --prefix zstd')).stdout.trim()
     const opensslPrefix = (await shFn('brew --prefix openssl')).stdout.trim()
+    // Homebrew lib dir: /opt/homebrew/lib (Apple Silicon) or /usr/local/lib (Intel).
+    const brewPrefix = (await shFn('brew --prefix')).stdout.trim()
     return {
       ldflags: `-L${zstdPrefix}/lib`,
       cppflags: `-I${zstdPrefix}/include`,
       optDir: opensslPrefix,
+      libraryPath: brewPrefix ? `${brewPrefix}/lib` : '/opt/homebrew/lib',
     }
   }
 
@@ -429,6 +438,7 @@ export async function getLibBuildFlags(
     ldflags: zstdLibDir,
     cppflags: zstdIncDir,
     optDir: '/usr',
+    libraryPath: zstdLibDir.replace(/^-L/, '').trim() || '/usr/lib',
   }
 }
 
