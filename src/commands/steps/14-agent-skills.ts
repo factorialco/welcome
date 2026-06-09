@@ -12,7 +12,7 @@ export async function runStep14(
     for (let i = 0; i < SKILL_REPOS.length; i++) {
       const repo = SKILL_REPOS[i]!
       onProgress(i, `npx skills add ${repo}...`)
-      const result = await sh(`npx skills add "${repo}" -g -y`, {
+      const result = await sh(`npx --yes skills add "${repo}" -g -y`, {
         interactive: true,
       })
       if (result.code !== 0) {
