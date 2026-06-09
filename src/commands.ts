@@ -1807,6 +1807,31 @@ async function checkOSVersion(): Promise<PreflightResult> {
   return { name: 'macOS', status: 'ok', message: version }
 }
 
+/**
+ * Check the user is a macOS Administrator. Required because the wizard
+ * elevates via Homebrew and the native `osascript … with administrator
+ * privileges` dialog (see `sudoSh`) — both refuse for non-admin users,
+ * and Homebrew aborts outright with "Don't run this as root!" under sudo.
+ * Skipped on Linux, where elevation goes through `sudo`.
+ */
+async function checkAdmin(): Promise<PreflightResult> {
+  if (!isDarwin()) {
+    return { name: 'Admin', status: 'ok', message: 'sudo-based (Linux)' }
+  }
+  const result = await sh("id -Gn 2>/dev/null | tr ' ' '\\n' | grep -qx admin")
+  if (result.code !== 0) {
+    return {
+      name: 'Admin rights',
+      status: 'warn',
+      message:
+        'Not an Administrator — required for Homebrew & install steps. ' +
+        'Request it from IT (Factorial MDM); if just granted, log out and back in or reboot. ' +
+        'Do NOT run this with sudo.'
+    }
+  }
+  return { name: 'Admin rights', status: 'ok', message: 'Administrator' }
+}
+
 /** Check available disk space (warn if < 20 GB free on home partition) */
 async function checkDiskSpace(): Promise<PreflightResult> {
   const dfResult = await sh(`df -k "${HOME}"`)
@@ -1842,7 +1867,7 @@ async function checkNetwork(): Promise<PreflightResult> {
 export async function runPreflightChecks(
   onResult: (result: PreflightResult, index: number) => void
 ): Promise<PreflightResult[]> {
-  const checks = [checkShell, checkOSVersion, checkDiskSpace, checkNetwork]
+  const checks = [checkShell, checkOSVersion, checkAdmin, checkDiskSpace, checkNetwork]
   const results: PreflightResult[] = []
 
   for (let i = 0; i < checks.length; i++) {
