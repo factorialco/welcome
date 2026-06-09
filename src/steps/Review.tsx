@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { useWizard, SETUP_TASKS, BRAND_COLOR, agenticCliLabel, editorChoiceLabel } from '../context.js'
+import {
+  useWizard,
+  SETUP_TASKS,
+  BRAND_COLOR,
+  agenticCliLabel,
+  editorChoiceLabel,
+} from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
 import { getPlatformLabel, getArch } from '../platform.js'

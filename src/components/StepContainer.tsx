@@ -1,12 +1,12 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import { BRAND_COLOR } from '../context.js'
+import { BRAND_COLOR } from '../context/index.js'
 
 export function StepContainer({
   title,
   subtitle,
   children,
-  color = BRAND_COLOR
+  color = BRAND_COLOR,
 }: {
   title: string
   subtitle?: string

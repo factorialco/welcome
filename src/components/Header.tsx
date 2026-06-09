@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Text } from 'ink'
-import { WIZARD_STEPS, BRAND_COLOR, useWizard } from '../context.js'
+import { WIZARD_STEPS, BRAND_COLOR, useWizard } from '../context/index.js'
 
 const HEADER_MESSAGES = [
   'Developer Onboarding',

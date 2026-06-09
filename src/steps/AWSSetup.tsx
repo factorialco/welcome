@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import Spinner from 'ink-spinner'
-import { useWizard, BRAND_COLOR } from '../context.js'
+import { useWizard, BRAND_COLOR } from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Divider } from '../components/UI.js'
 import {
@@ -11,20 +11,21 @@ import {
   ensureAWSProfileConfig,
   checkAWSSession,
   runAWSSSOLogin,
-  getAWSCallerIdentity
-} from '../commands.js'
+  getAWSCallerIdentity,
+  getErrorMessage,
+} from '../commands/index.js'
 
 type Phase =
-  | 'checking'       // Checking AWS CLI and existing session
-  | 'installing'     // Installing AWS CLI
-  | 'authenticated'  // Already authenticated, ready to continue
-  | 'ready'          // Ready to start SSO login
-  | 'logging-in'     // SSO login in progress (browser open)
-  | 'verified'       // Login verified, ready to continue
-  | 'error'          // Something went wrong
+  | 'checking' // Checking AWS CLI and existing session
+  | 'installing' // Installing AWS CLI
+  | 'authenticated' // Already authenticated, ready to continue
+  | 'ready' // Ready to start SSO login
+  | 'logging-in' // SSO login in progress (browser open)
+  | 'verified' // Login verified, ready to continue
+  | 'error' // Something went wrong
 
 export function AWSSetupStep() {
-  const { config, updateConfig, goNext, goBack } = useWizard()
+  const { updateConfig, goNext, goBack } = useWizard()
 
   const [phase, setPhase] = useState<Phase>('checking')
   const [identity, setIdentity] = useState<string>('')
@@ -32,7 +33,10 @@ export function AWSSetupStep() {
   const [hasConfig, setHasConfig] = useState(false)
 
   useEffect(() => {
+    // Run the initial session check once on mount. checkExistingSession is also
+    // invoked directly from the retry handler, so it intentionally stays out of deps.
     checkExistingSession()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function checkExistingSession() {
@@ -71,8 +75,8 @@ export function AWSSetupStep() {
       }
 
       setPhase('ready')
-    } catch (e: any) {
-      setErrorMsg(e.message)
+    } catch (e) {
+      setErrorMsg(getErrorMessage(e))
       setPhase('error')
     }
   }
@@ -91,8 +95,8 @@ export function AWSSetupStep() {
         setErrorMsg(result.error || 'Login failed.')
         setPhase('ready')
       }
-    } catch (e: any) {
-      setErrorMsg(`Login failed: ${e.message}`)
+    } catch (e) {
+      setErrorMsg(`Login failed: ${getErrorMessage(e)}`)
       setPhase('ready')
     }
   }
@@ -151,15 +155,19 @@ export function AWSSetupStep() {
       {phase === 'authenticated' && (
         <Box flexDirection="column" gap={1}>
           <Text>
-            <Text color="green" bold>{'✓ '}</Text>
+            <Text color="green" bold>
+              {'✓ '}
+            </Text>
             AWS SSO session is active.
           </Text>
-          {identity && <Text dimColor>  Identity: {identity}</Text>}
+          {identity && <Text dimColor> Identity: {identity}</Text>}
           <Divider />
           <Text>
             Press{' '}
-            <Text color={BRAND_COLOR} bold>Enter</Text>
-            {' '}to continue to installation
+            <Text color={BRAND_COLOR} bold>
+              Enter
+            </Text>{' '}
+            to continue to installation
           </Text>
         </Box>
       )}
@@ -200,8 +208,10 @@ export function AWSSetupStep() {
           <Box gap={2}>
             <Text>
               Press{' '}
-              <Text color={BRAND_COLOR} bold>Enter</Text>
-              {' '}to start AWS SSO login
+              <Text color={BRAND_COLOR} bold>
+                Enter
+              </Text>{' '}
+              to start AWS SSO login
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
@@ -223,11 +233,10 @@ export function AWSSetupStep() {
             </Text>
             <Text> Running AWS SSO login... (check your browser)</Text>
           </Box>
+          <Text dimColor>Complete the sign-in in your browser, then return here.</Text>
           <Text dimColor>
-            Complete the sign-in in your browser, then return here.
-          </Text>
-          <Text dimColor>
-            If the browser didn't open, check <Text color={BRAND_COLOR}>/tmp/welcome.log</Text> for the login URL.
+            If the browser didn't open, check <Text color={BRAND_COLOR}>/tmp/welcome.log</Text> for
+            the login URL.
           </Text>
         </Box>
       )}
@@ -235,15 +244,19 @@ export function AWSSetupStep() {
       {phase === 'verified' && (
         <Box flexDirection="column" gap={1}>
           <Text>
-            <Text color="green" bold>{'✓ '}</Text>
+            <Text color="green" bold>
+              {'✓ '}
+            </Text>
             AWS SSO login verified!
           </Text>
-          {identity && <Text dimColor>  Identity: {identity}</Text>}
+          {identity && <Text dimColor> Identity: {identity}</Text>}
           <Divider />
           <Text>
             Press{' '}
-            <Text color={BRAND_COLOR} bold>Enter</Text>
-            {' '}to continue to installation
+            <Text color={BRAND_COLOR} bold>
+              Enter
+            </Text>{' '}
+            to continue to installation
           </Text>
         </Box>
       )}
@@ -255,8 +268,8 @@ export function AWSSetupStep() {
             {errorMsg}
           </Text>
           <Text dimColor>
-            If the error persists, ensure you have AWS access or request it
-            in <Text bold>"Application Access Request"</Text> in IT Support:
+            If the error persists, ensure you have AWS access or request it in{' '}
+            <Text bold>"Application Access Request"</Text> in IT Support:
           </Text>
           <Text dimColor>
             https://portal.support.factorialhr.com/servicedesk/customer/portal/247
@@ -264,7 +277,11 @@ export function AWSSetupStep() {
           <Divider />
           <Box gap={2}>
             <Text>
-              Press <Text color={BRAND_COLOR} bold>r</Text> to retry
+              Press{' '}
+              <Text color={BRAND_COLOR} bold>
+                r
+              </Text>{' '}
+              to retry
             </Text>
             <Text dimColor>|</Text>
             <Text dimColor>
