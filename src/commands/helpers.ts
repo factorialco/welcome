@@ -101,7 +101,17 @@ export function runCommand(
   })
 }
 
-/** Run a shell command string via the user's default shell */
+/**
+ * Run a shell command string via the user's default shell.
+ *
+ * By default this NEVER throws on a non-zero exit code — it returns the result
+ * so callers can inspect `result.code` (many call sites legitimately tolerate
+ * exit ≠ 0: `command -v`, `… || echo ""`, `… || true`, SSH probes, etc.).
+ *
+ * Pass `{ check: true }` to make the command "fail-loud": if the exit code is
+ * non-zero it throws an Error with the command, exit code and the tail of its
+ * output. Use this for critical steps that must not be silently skipped.
+ */
 export async function sh(
   command: string,
   options: {
@@ -109,10 +119,16 @@ export async function sh(
     interactive?: boolean
     env?: Record<string, string>
     timeout?: number
+    check?: boolean
   } = {}
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   const [shell, baseArgs] = getShellArgs()
-  return runCommand(shell, [...baseArgs, command], options)
+  const result = await runCommand(shell, [...baseArgs, command], options)
+  if (options.check && result.code !== 0) {
+    const tail = (result.stderr || result.stdout).split('\n').slice(-15).join('\n')
+    throw new Error(`Command failed (exit ${result.code}): ${command}${tail ? `\n${tail}` : ''}`)
+  }
+  return result
 }
 
 /**

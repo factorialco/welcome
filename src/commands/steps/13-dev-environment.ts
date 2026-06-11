@@ -36,19 +36,30 @@ export async function runStep13(
     // mysql2 gem with library flags (platform-aware)
     const buildFlags = await getLibBuildFlags((cmd) => sh(cmd))
 
+    // Safety net for the native build: export LIBRARY_PATH so the linker finds
+    // libzstd/openssl even if the explicit --with-ldflags don't take effect.
+    // Prepend so any pre-existing LIBRARY_PATH is preserved.
+    const buildEnv: Record<string, string> = buildFlags.libraryPath
+      ? {
+          LIBRARY_PATH: [buildFlags.libraryPath, process.env.LIBRARY_PATH]
+            .filter(Boolean)
+            .join(':'),
+        }
+      : {}
+
     // Bundle config for native gem compilation — set before any gem install so
     // both the standalone gem install and bundle install pick up the right flags.
     // Needed on all macOS (not just ARM) with MySQL 9.x which requires zstd.
     if (isDarwin() || isLinux()) {
       await sh(
         `bundle config set --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
-        { cwd: path.join(REPO_PATH, 'backend') }
+        { cwd: path.join(REPO_PATH, 'backend'), check: true }
       )
     }
 
     await sh(
       `gem install mysql2 -- --with-opt-dir="${buildFlags.optDir}" --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
-      { cwd: path.join(REPO_PATH, 'backend') }
+      { cwd: path.join(REPO_PATH, 'backend'), env: buildEnv, check: true }
     )
 
     // tmuxinator (terminal multiplexer session manager)
@@ -57,6 +68,8 @@ export async function runStep13(
     await sh('bundle install', {
       cwd: path.join(REPO_PATH, 'backend'),
       interactive: true,
+      env: buildEnv,
+      check: true,
     })
 
     // 2. Mobile + ATS deps
@@ -77,11 +90,11 @@ export async function runStep13(
     // 4. Docker compose — detect modern plugin vs legacy standalone
     const composeCmd = await (async () => {
       try {
-        await sh('docker compose version', { cwd: REPO_PATH })
+        await sh('docker compose version', { cwd: REPO_PATH, check: true })
         return 'docker compose'
       } catch {
         try {
-          await sh('docker-compose --version', { cwd: REPO_PATH })
+          await sh('docker-compose --version', { cwd: REPO_PATH, check: true })
           onProgress(
             5,
             '⚠ Legacy docker-compose detected. Consider upgrading to the Docker Compose plugin (docker compose).'
@@ -154,17 +167,33 @@ export async function runStep13(
       onProgress(7, 'Restoring database from backup...')
       await sh(
         'bundle exec rails db:drop db:create db:seeds:restore db:migrate:with_data dev:enable_default_features db:test:prepare',
-        { cwd: path.join(REPO_PATH, 'backend'), interactive: true }
+        { cwd: path.join(REPO_PATH, 'backend'), interactive: true, check: true }
       )
     } else {
       onProgress(7, 'Creating database...')
       await sh('bundle exec rails db:create db:migrate db:test:prepare', {
         cwd: path.join(REPO_PATH, 'backend'),
         interactive: true,
+        check: true,
       })
     }
 
-    // 7. Done — no editor or browser opened; the finished pane shows next steps
+    // 7. Verify post-conditions — only mark the task green if the environment is
+    // actually usable. Each check is fail-loud (`check: true`) so a failure here
+    // surfaces as a red task with a real error instead of a false ✓.
+    onProgress(7, 'Verifying environment...')
+    const backendCwd = path.join(REPO_PATH, 'backend')
+
+    // 7a. The mysql2 native extension actually loads (zstd/openssl linked OK),
+    //     not just that `gem install` reported success.
+    await sh(`bundle exec ruby -e "require 'mysql2'"`, { cwd: backendCwd, check: true })
+
+    // 7b. The database is reachable AND has no pending migrations. This single
+    //     rake task must connect to read schema_migrations, so it covers both
+    //     "DB exists/reachable" and "schema is up to date" in one Rails boot.
+    await sh('bundle exec rails db:abort_if_pending_migrations', { cwd: backendCwd, check: true })
+
+    // 8. Done — no editor or browser opened; the finished pane shows next steps
 
     return { success: true, duration: Date.now() - start }
   } catch (e) {
