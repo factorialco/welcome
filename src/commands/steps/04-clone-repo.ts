@@ -36,13 +36,7 @@ export async function runStep4(
         1,
         `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`
       )
-      // Resilient clone (I2):
-      //  - `--filter=blob:none` makes a blobless partial clone: file contents are
-      //    fetched on demand instead of all at once, so the initial transfer is
-      //    much smaller and far less likely to stall/time out on a flaky network.
-      //  - Retry with backoff so a transient network blip doesn't fail the whole
-      //    setup. A failed clone can leave a partial dir behind, which would make
-      //    the next attempt fail with "already exists", so we clean it each retry.
+      // Blobless partial clone + retry with backoff for flaky networks
       const maxAttempts = 3
       let cloned = false
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -54,7 +48,7 @@ export async function runStep4(
           cloned = true
           break
         }
-        // Clean up any partial clone so the retry starts from a clean state.
+        // Clean the partial clone so the retry doesn't hit "already exists"
         await sh(`rm -rf "${REPO_PATH}"`)
         if (attempt < maxAttempts) {
           onProgress(1, `Clone failed (attempt ${attempt}/${maxAttempts}), retrying...`)

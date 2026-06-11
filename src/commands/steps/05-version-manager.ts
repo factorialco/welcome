@@ -40,11 +40,7 @@ export async function runStep5(
       onProgress(1, 'Setting up mise version manager...')
       await ensureLine(shellRc, `eval "$(mise activate ${shell})"`)
 
-      // Disable python-build's GitHub attestation verification (I3). Newer
-      // python-build verifies the downloaded CPython source against GitHub
-      // attestations; on many networks that extra fetch/verify step fails and
-      // aborts the whole python install. Persist the setting before any python
-      // install so both `mise use python@latest` and `mise install` are safe.
+      // Disable python-build's GitHub attestation check (fails on many networks)
       await sh('mise settings set python.github_attestations false', { check: true })
 
       // 2-5. Install plugins
