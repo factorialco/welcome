@@ -36,12 +36,33 @@ export async function runStep4(
         1,
         `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`
       )
-      const result = await sh(
-        `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
-        { interactive: true }
-      )
-      if (result.code !== 0) {
-        throw new Error('Failed to clone Factorial repository')
+      // Resilient clone (I2):
+      //  - `--filter=blob:none` makes a blobless partial clone: file contents are
+      //    fetched on demand instead of all at once, so the initial transfer is
+      //    much smaller and far less likely to stall/time out on a flaky network.
+      //  - Retry with backoff so a transient network blip doesn't fail the whole
+      //    setup. A failed clone can leave a partial dir behind, which would make
+      //    the next attempt fail with "already exists", so we clean it each retry.
+      const maxAttempts = 3
+      let cloned = false
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const result = await sh(
+          `git clone --filter=blob:none git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
+          { interactive: true }
+        )
+        if (result.code === 0) {
+          cloned = true
+          break
+        }
+        // Clean up any partial clone so the retry starts from a clean state.
+        await sh(`rm -rf "${REPO_PATH}"`)
+        if (attempt < maxAttempts) {
+          onProgress(1, `Clone failed (attempt ${attempt}/${maxAttempts}), retrying...`)
+          await new Promise((r) => setTimeout(r, attempt * 5000))
+        }
+      }
+      if (!cloned) {
+        throw new Error(`Failed to clone Factorial repository after ${maxAttempts} attempts`)
       }
     } else if (await dirExists(path.join(REPO_PATH, '.git'))) {
       onProgress(1, 'Repository already cloned, pulling latest...')
