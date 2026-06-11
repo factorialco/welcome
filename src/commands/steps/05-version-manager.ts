@@ -40,8 +40,11 @@ export async function runStep5(
       onProgress(1, 'Setting up mise version manager...')
       await ensureLine(shellRc, `eval "$(mise activate ${shell})"`)
 
-      // Disable python-build's GitHub attestation check (fails on many networks)
-      await sh('mise settings set python.github_attestations false', { check: true })
+      // Best-effort: disable python-build's GitHub attestation check (older mise lacks this key)
+      const attestations = await sh('mise settings set python.github_attestations false')
+      if (attestations.code !== 0) {
+        onProgress(1, '⚠ Could not set python.github_attestations (continuing)')
+      }
 
       // 2-5. Install plugins
       for (let i = 0; i < plugins.length; i++) {
