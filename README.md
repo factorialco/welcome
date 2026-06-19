@@ -53,4 +53,4 @@ Tasks run in parallel tiers based on their dependency graph -- independent tasks
 ## Requirements
 
 - macOS
-- Node.js >= 18
+- Node.js >= 24
