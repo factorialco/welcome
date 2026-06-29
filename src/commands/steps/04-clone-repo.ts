@@ -36,12 +36,27 @@ export async function runStep4(
         1,
         `Cloning factorialco/factorial into ${REPO_PATH}... (this may take a while, patience!)`
       )
-      const result = await sh(
-        `git clone git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
-        { interactive: true }
-      )
-      if (result.code !== 0) {
-        throw new Error('Failed to clone Factorial repository')
+      // Blobless partial clone + retry with backoff for flaky networks
+      const maxAttempts = 3
+      let cloned = false
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const result = await sh(
+          `git clone --filter=blob:none git@github.com:${ORG_NAME}/${REPO_NAME}.git "${REPO_PATH}"`,
+          { interactive: true }
+        )
+        if (result.code === 0) {
+          cloned = true
+          break
+        }
+        // Clean the partial clone so the retry doesn't hit "already exists"
+        await sh(`rm -rf "${REPO_PATH}"`)
+        if (attempt < maxAttempts) {
+          onProgress(1, `Clone failed (attempt ${attempt}/${maxAttempts}), retrying...`)
+          await new Promise((r) => setTimeout(r, attempt * 5000))
+        }
+      }
+      if (!cloned) {
+        throw new Error(`Failed to clone Factorial repository after ${maxAttempts} attempts`)
       }
     } else if (await dirExists(path.join(REPO_PATH, '.git'))) {
       onProgress(1, 'Repository already cloned, pulling latest...')

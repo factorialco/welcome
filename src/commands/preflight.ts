@@ -10,10 +10,22 @@ export type PreflightResult = {
   message: string
 }
 
+const MIN_NODE_MAJOR = 18
+
 /** Detect the user's shell */
 async function checkShell(): Promise<PreflightResult> {
   const shell = getUserShell()
   return { name: 'Shell', status: 'ok', message: shell }
+}
+
+/** Check Node.js version (warn if < 18). Covers the local `npm start` path. */
+async function checkNodeVersion(): Promise<PreflightResult> {
+  const version = process.versions.node
+  const major = Number(version.split('.')[0])
+  if (Number.isNaN(major) || major < MIN_NODE_MAJOR) {
+    return { name: 'Node.js', status: 'warn', message: `${version} (< ${MIN_NODE_MAJOR} required)` }
+  }
+  return { name: 'Node.js', status: 'ok', message: version }
 }
 
 /** Check macOS version (warn if < 13 Ventura). Skip on Linux. */
@@ -114,7 +126,14 @@ async function checkNetwork(): Promise<PreflightResult> {
 export async function runPreflightChecks(
   onResult: (result: PreflightResult, index: number) => void
 ): Promise<PreflightResult[]> {
-  const checks = [checkShell, checkOSVersion, checkAdmin, checkDiskSpace, checkNetwork]
+  const checks = [
+    checkShell,
+    checkNodeVersion,
+    checkOSVersion,
+    checkAdmin,
+    checkDiskSpace,
+    checkNetwork,
+  ]
   const results: PreflightResult[] = []
 
   for (let i = 0; i < checks.length; i++) {

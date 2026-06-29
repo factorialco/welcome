@@ -7,6 +7,9 @@
   "bin": {
     "factorial-welcome": "./bin/welcome.mjs"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "tsx src/index.tsx",
     "build": "tsc",

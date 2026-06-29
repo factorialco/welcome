@@ -2,6 +2,15 @@ import { type SetupConfig } from '../../context/index.js'
 import { SKILL_REPOS } from '../constants.js'
 import { getErrorMessage, sh, type ProgressCallback, type TaskResult } from '../helpers.js'
 
+// Hard backstop so a stuck `skills add` is killed and skipped, not hung
+const SKILL_INSTALL_TIMEOUT_MS = 3 * 60 * 1000
+
+// Force non-interactive git/SSH so a clone fails fast instead of waiting on a prompt
+const NON_INTERACTIVE_GIT_ENV = {
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
+}
+
 /** Step 14: Install agent skills */
 export async function runStep14(
   config: SetupConfig,
@@ -14,9 +23,12 @@ export async function runStep14(
       onProgress(i, `npx skills add ${repo}...`)
       const result = await sh(`npx --yes skills add "${repo}" -g -y`, {
         interactive: true,
+        timeout: SKILL_INSTALL_TIMEOUT_MS,
+        env: NON_INTERACTIVE_GIT_ENV,
       })
       if (result.code !== 0) {
-        // Non-fatal: log but continue
+        // Non-fatal: warn and continue so one bad skill doesn't block setup
+        onProgress(i, `⚠ Skipped "${repo}" (skills add failed or timed out) — continuing.`)
       }
     }
 
