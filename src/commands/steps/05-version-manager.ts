@@ -1,5 +1,5 @@
 import { type SetupConfig } from '../../context/index.js'
-import { getShellRc, getUserShell } from '../../platform.js'
+import { getShellProfile, getShellRc, getUserShell } from '../../platform.js'
 import { HOME, REPO_PATH } from '../constants.js'
 import {
   dirExists,
@@ -24,6 +24,7 @@ export async function runStep5(
     const plugins = ['rust', 'ruby', 'nodejs', 'python']
     const useMise = config.versionManager === 'mise'
     const shellRc = getShellRc()
+    const shellProfile = getShellProfile()
     const shell = getUserShell()
 
     // 0. Copy .factorialrc
@@ -38,7 +39,13 @@ export async function runStep5(
     if (useMise) {
       // 1. Add mise to PATH
       onProgress(1, 'Setting up mise version manager...')
+      // Also write to the profile (not just shellRc): sh()/sudoSh() run via a
+      // login shell, and on macOS that triggers path_helper, which pushes
+      // mise's shims behind /usr/bin. shellRc only loads for interactive
+      // shells, so it can't undo that; the profile loads for login shells
+      // either way and runs after path_helper.
       await ensureLine(shellRc, `eval "$(mise activate ${shell})"`)
+      await ensureLine(shellProfile, `eval "$(mise activate ${shell})"`)
 
       // 2-5. Install plugins
       for (let i = 0; i < plugins.length; i++) {
@@ -60,6 +67,9 @@ export async function runStep5(
       onProgress(1, 'Setting up asdf version manager...')
       const asdfPath = 'export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"'
       await ensureLine(shellRc, asdfPath)
+      // Same login-shell path_helper issue as the mise branch above: without
+      // this, asdf's shims lose out to /usr/bin in the wizard's own `sh()` calls.
+      await ensureLine(shellProfile, asdfPath)
 
       for (let i = 0; i < plugins.length; i++) {
         const plugin = plugins[i]!
