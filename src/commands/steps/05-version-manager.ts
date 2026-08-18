@@ -6,6 +6,7 @@ import {
   ensureLine,
   fileExists,
   getErrorMessage,
+  makeShTool,
   sh,
   sudoSh,
   type ProgressCallback,
@@ -26,6 +27,9 @@ export async function runStep5(
     const shellRc = getShellRc()
     const shellProfile = getShellProfile()
     const shell = getUserShell()
+    // The version manager's own binary and the tools it installs must resolve
+    // without depending on how the login shell orders PATH.
+    const shTool = makeShTool(config.versionManager)
 
     // 0. Copy .factorialrc
     onProgress(0, 'Copying .factorialrc...')
@@ -50,18 +54,18 @@ export async function runStep5(
       // 2-5. Install plugins
       for (let i = 0; i < plugins.length; i++) {
         onProgress(i + 1, `Installing plugin: ${plugins[i]}...`)
-        await sh(`mise use -g "${plugins[i]}@latest"`, {
+        await shTool(`mise use -g "${plugins[i]}@latest"`, {
           env: { RUBY_CONFIGURE_OPTS: '--enable-yjit' },
         })
       }
 
       // 6. Install rust specific version
       onProgress(5, 'Installing Rust 1.96.0...')
-      await sh('mise use -g rust@1.96.0')
+      await shTool('mise use -g rust@1.96.0')
 
       // 7. Install all versions from repo
       onProgress(6, 'Installing all versions from .tool-versions...')
-      await sh('mise install', { cwd: REPO_PATH, interactive: true })
+      await shTool('mise install', { cwd: REPO_PATH, interactive: true })
     } else {
       // asdf
       onProgress(1, 'Setting up asdf version manager...')
@@ -74,19 +78,19 @@ export async function runStep5(
       for (let i = 0; i < plugins.length; i++) {
         const plugin = plugins[i]!
         onProgress(i + 1, `Installing plugin: ${plugin}...`)
-        const list = await sh('asdf plugin list')
+        const list = await shTool('asdf plugin list')
         if (list.stdout.includes(plugin)) {
-          await sh(`asdf plugin update ${plugin}`)
+          await shTool(`asdf plugin update ${plugin}`)
         } else {
-          await sh(`asdf plugin add ${plugin}`)
+          await shTool(`asdf plugin add ${plugin}`)
         }
       }
 
       onProgress(5, 'Installing Rust...')
-      await sh('asdf install rust', { env: { ASDF_RUST_VERSION: '1.96.0' } })
+      await shTool('asdf install rust', { env: { ASDF_RUST_VERSION: '1.96.0' } })
 
       onProgress(6, 'Installing all versions from .tool-versions...')
-      await sh('asdf install', { cwd: REPO_PATH, interactive: true })
+      await shTool('asdf install', { cwd: REPO_PATH, interactive: true })
 
       // Fix permissions — resolve username now because sudoSh on macOS runs as
       // root (where $(whoami) would return "root").

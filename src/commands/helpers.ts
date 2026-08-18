@@ -1,4 +1,5 @@
-import { getShellArgs, isDarwin } from '../platform.js'
+import type { VersionManager } from '../context/types.js'
+import { getShellArgs, getToolPathPrefix, isDarwin } from '../platform.js'
 import { LOG_FILE } from './constants.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { constants, createWriteStream } from 'node:fs'
@@ -129,6 +130,16 @@ export async function sh(
     throw new Error(`Command failed (exit ${result.code}): ${command}${tail ? `\n${tail}` : ''}`)
   }
   return result
+}
+
+/**
+ * Build an `sh()` that runs its commands with the version manager's tools first
+ * on PATH — see getToolPathPrefix() for why the wizard cannot rely on the
+ * user's shell profile for this.
+ */
+export function makeShTool(vm: VersionManager): typeof sh {
+  const prefix = getToolPathPrefix(vm)
+  return (command, options) => sh(prefix + command, options)
 }
 
 /**

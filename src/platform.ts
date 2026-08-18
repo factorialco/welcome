@@ -1,3 +1,4 @@
+import type { VersionManager } from './context/types.js'
 import { readFile } from 'node:fs/promises'
 import { platform as osPlatform, arch as osArch } from 'node:os'
 import { homedir } from 'node:os'
@@ -106,6 +107,26 @@ export function getShellRc(): string {
   const shell = getUserShell()
   if (shell === 'zsh') return path.join(home, '.zshrc')
   return path.join(home, '.bashrc')
+}
+
+/**
+ * Shell snippet that puts the version manager's tools first on PATH.
+ *
+ * Commands run through a login shell, and on macOS path_helper (/etc/zprofile)
+ * rebuilds PATH with the system directories first. That demotes the shims a
+ * user profile added behind /usr/bin, so `ruby`/`gem`/`bundle` resolve to the
+ * OS-bundled Ruby. Prepending inside the command itself runs after the profile,
+ * so it wins whatever the dotfiles look like.
+ *
+ * The Homebrew directories are here so `mise`/`asdf` themselves resolve; PATH
+ * entries that do not exist are ignored.
+ */
+export function getToolPathPrefix(vm: VersionManager): string {
+  const shimsDir =
+    vm === 'mise'
+      ? '${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims:$HOME/.local/bin'
+      : '${ASDF_DATA_DIR:-$HOME/.asdf}/shims'
+  return `export PATH="${shimsDir}:/opt/homebrew/bin:/usr/local/bin:$PATH"; `
 }
 
 // ── Cross-Platform Command Equivalents ─────────────────
