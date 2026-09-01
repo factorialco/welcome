@@ -17,6 +17,7 @@ export function CompletionScreen({
   const skippedCount = tasks.filter((t) => t.status === 'skipped').length
   const failedCount = tasks.filter((t) => t.status === 'failed').length
   const failedTasks = tasks.filter((t) => t.status === 'failed')
+  const willOnboard = failedCount === 0 && config.agenticClis.length > 0
 
   return (
     <Box
@@ -122,6 +123,11 @@ export function CompletionScreen({
             <>
               Press <Text color="gray">r</Text> to retry failed tasks <Text color="gray">|</Text>{' '}
               <Text color="gray">Enter</Text> to exit
+            </>
+          ) : willOnboard ? (
+            <>
+              Press <Text color="gray">Enter</Text> to start your codebase onboarding{' '}
+              <Text color="gray">|</Text> <Text color="gray">q</Text> to exit
             </>
           ) : (
             <>

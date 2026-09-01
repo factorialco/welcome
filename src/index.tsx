@@ -1,5 +1,6 @@
 import { render } from 'ink'
 import App from './App.js'
+import { launchDeferredOnboarding } from './commands/index.js'
 
 const LOG_FILE = '/tmp/welcome.log'
 
@@ -16,4 +17,6 @@ process.on('unhandledRejection', (reason) => {
   process.exit(1)
 })
 
-render(<App />)
+const { waitUntilExit } = render(<App />)
+
+waitUntilExit().then(() => launchDeferredOnboarding())
