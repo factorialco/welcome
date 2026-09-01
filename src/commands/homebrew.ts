@@ -35,6 +35,18 @@ export async function ensureHomebrew(): Promise<void> {
     }
   }
 
+  // With NONINTERACTIVE set, Homebrew's installer probes for rights using `sudo -n`
+  // and aborts if no credentials are cached. warmupSudo() cannot satisfy that on
+  // macOS: it authenticates through osascript, which uses Authorization Services
+  // and leaves sudo's timestamp untouched. So prime sudo here.
+  const sudoPrime = await sh('sudo -v', { interactive: true, timeout: 120000 })
+  if (sudoPrime.code !== 0) {
+    throw new Error(
+      'Homebrew needs administrator rights and sudo authentication failed. ' +
+        'Check that "Root permissions" is enabled in Self Service+ and retry.'
+    )
+  }
+
   const installResult = await sh(
     'NONINTERACTIVE=1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"',
     { interactive: true, timeout: 300000 }
