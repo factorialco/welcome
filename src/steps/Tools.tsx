@@ -126,14 +126,18 @@ export function ToolsStep() {
           <Text color={BRAND_COLOR} bold>
             Which version manager would you like to use?
           </Text>
-          <Text dimColor>This manages Ruby, Node.js, Python, and Rust versions.</Text>
+          <Text dimColor>
+            This manages language runtimes, Bazelisk, adr-tools, and Atlas versions.
+          </Text>
           <Box marginLeft={2}>
             <SelectInput items={VM_OPTIONS} onSelect={handleVMSelect} />
           </Box>
 
           <Box marginTop={1} borderStyle="single" borderColor="gray" paddingX={2} paddingY={0}>
             <Box flexDirection="column">
-              <Text dimColor>Plugins to install: rust, ruby, nodejs, python</Text>
+              <Text dimColor>
+                Tools to install: rust, ruby, nodejs, python, bazelisk, adr-tools, atlas
+              </Text>
               <Text dimColor>Versions will be read from the repo's .tool-versions file</Text>
             </Box>
           </Box>

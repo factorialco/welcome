@@ -38,7 +38,7 @@ npm start
 2. **Docker** -- Colima, architecture-aware config (vz/virtiofs on Apple Silicon)
 3. **Git identity** -- SSH key generation, GitHub SSO authorization
 4. **Clone repository** -- `factorialco/factorial` to `~/code/factorial`, git perf settings
-5. **Version manager** -- mise or asdf with Ruby, Node.js, Python, Rust plugins
+5. **Version manager** -- mise or asdf with Ruby, Node.js, Python, Rust, [Bazelisk](https://github.com/bazelbuild/bazelisk) (`bazel`/`bazelisk`), [adr-tools](https://github.com/npryce/adr-tools) (`adr`), and [Atlas](https://atlasgo.io/getting-started) (`atlas`)
 6. **AWS credentials** -- SSO login with `development` profile
 7. **Secrets** -- Retrieve env vars from AWS Secrets Manager
 8. **Hosts file** -- 27 `*.local.factorial.dev` entries in `/etc/hosts`

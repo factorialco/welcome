@@ -54,7 +54,7 @@ export const SETUP_TASKS: SetupTask[] = [
     id: 5,
     icon: '▸',
     name: 'Setup version manager',
-    description: 'Install language runtimes (Ruby, Node, Python)',
+    description: 'Language runtimes, Bazelisk, adr-tools, Atlas',
     dependsOn: [4],
   },
   {
