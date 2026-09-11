@@ -61,13 +61,16 @@ export function getSubtasks(taskId: number, config: SetupConfig): string[] {
       ]
     case 5:
       return [
-        `Installing ${config.versionManager}...`,
+        'Copying .factorialrc...',
+        `Setting up ${config.versionManager}...`,
         'Installing plugin: rust...',
         'Installing plugin: ruby...',
         'Installing plugin: nodejs...',
         'Installing plugin: python...',
-        'Copying .factorialrc...',
+        'Installing Rust...',
+        'Installing Bazelisk, adr-tools, and Atlas...',
         'Installing all versions...',
+        'Configuring Bazel launcher...',
       ]
     case 6:
       return ['Copying AWS config...', 'Verifying AWS session...']
