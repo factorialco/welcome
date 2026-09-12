@@ -1,7 +1,7 @@
 import { type SetupConfig } from '../../context/index.js'
 import type { VersionManager } from '../../context/types.js'
 import { getLibBuildFlags, isDarwin, isLinux } from '../../platform.js'
-import { BUNDLER_VERSION, HOME, PNPM_VERSION, REPO_PATH } from '../constants.js'
+import { BUNDLER_VERSION, PNPM_VERSION, REPO_PATH } from '../constants.js'
 import {
   getErrorMessage,
   makeShTool,
@@ -32,10 +32,14 @@ async function resolveBundlerVersion(backendCwd: string): Promise<string> {
  * Refuse to continue on an OS-bundled Ruby. Every gem and bundle command below
  * would otherwise appear to work and then fail several commands later inside
  * bundler, with a message that says nothing about PATH.
+ *
+ * `shRuby` must already be bound to a directory inside the repo — see the
+ * comment on `shRuby` in runStep13 for why the working directory decides which
+ * Ruby answers.
  */
-async function assertManagedRuby(shTool: ShTool, versionManager: VersionManager): Promise<void> {
-  const rubyPath = (await shTool('command -v ruby')).stdout.trim()
-  const rubyVersion = (await shTool(`ruby -e 'print RUBY_VERSION'`)).stdout.trim()
+async function assertManagedRuby(shRuby: ShTool, versionManager: VersionManager): Promise<void> {
+  const rubyPath = (await shRuby('command -v ruby')).stdout.trim()
+  const rubyVersion = (await shRuby(`ruby -e 'print RUBY_VERSION'`)).stdout.trim()
   const major = Number(rubyVersion.split('.')[0])
 
   if (!rubyPath || !Number.isFinite(major) || major < 3) {
@@ -44,6 +48,23 @@ async function assertManagedRuby(shTool: ShTool, versionManager: VersionManager)
       `Ruby from ${versionManager} is not on PATH. Found: ${found}. ` +
         `Complete the version manager step first. Then make sure the ${versionManager} ` +
         `activation line is in your shell profile.`
+    )
+  }
+}
+
+/**
+ * Refuse to run the Rails tasks when direnv has not exported the repo's DB
+ * settings. A blocked `.envrc` otherwise surfaces as a bare "can't connect to
+ * socket /tmp/mysql.sock" several minutes later, which points at MySQL rather
+ * than at the missing environment.
+ */
+async function assertRepoEnvLoaded(shApp: ShTool): Promise<void> {
+  const host = (await shApp('printenv DATABASE_HOST')).stdout.trim()
+  if (!host) {
+    throw new Error(
+      'direnv did not export DATABASE_HOST for the repo, so Rails would fall back ' +
+        `to the MySQL unix socket instead of the container. Run "direnv allow" in ${REPO_PATH} ` +
+        'and in its backend/ and .local-dev/ directories, then retry this step.'
     )
   }
 }
@@ -61,10 +82,30 @@ export async function runStep13(
     const backendCwd = path.join(REPO_PATH, 'backend')
     const reshim = config.versionManager === 'mise' ? 'mise reshim || true' : 'asdf reshim || true'
 
+    // The version manager picks the Ruby from the *working directory*, so the
+    // directory — not just PATH — decides which gemdir a command sees. The repo
+    // pins its own Ruby (.ruby-version / .tool-versions) while the user's global
+    // config is typically `ruby = "latest"`, an entirely different install. Any
+    // ruby/gem/bundle command run outside the repo therefore answers for the
+    // wrong Ruby: `gem install bundler` lands in the repo Ruby's gemdir and the
+    // verification right after it reads the global Ruby's and reports "false".
+    const shRuby: ShTool = (command, options) => shTool(command, { cwd: backendCwd, ...options })
+
+    // Anything that boots the app needs the repo's own environment on top of
+    // that. DATABASE_HOST/PORT and the credentials live in the chained .envrc
+    // files, so without direnv `database.yml` falls back to host `localhost`
+    // with no port — which mysql2 reads as "use the unix socket" and fails with
+    // `Can't connect to local MySQL server through socket '/tmp/mysql.sock'`
+    // even while the container is healthy on its mapped TCP port.
+    // `direnv exec DIR` loads DIR's env but leaves the working directory alone,
+    // so shRuby's cwd still decides the Ruby.
+    const shApp: ShTool = (command, options) =>
+      shRuby(`direnv exec "${backendCwd}" ${command}`, options)
+
     // Regenerate shims first: gem binstubs from an earlier partial run only
     // become callable after a reshim.
     await shTool(reshim)
-    await assertManagedRuby(shTool, config.versionManager)
+    await assertManagedRuby(shRuby, config.versionManager)
 
     // 0. Install yarn/pnpm and run pnpm i
     onProgress(0, 'Installing yarn and pnpm globally...')
@@ -79,12 +120,9 @@ export async function runStep13(
     // 1. Install bundler + bundle install
     onProgress(2, 'Installing bundler and running bundle install...')
     const bundlerVersion = await resolveBundlerVersion(backendCwd)
-    const gemDirWritable = (await shTool('[ -w "$(gem env gemdir)" ]')).code === 0
+    const gemDirWritable = (await shRuby('[ -w "$(gem env gemdir)" ]')).code === 0
     if (gemDirWritable) {
-      await shTool(`gem install bundler -v "${bundlerVersion}"`, {
-        cwd: backendCwd,
-        check: true,
-      })
+      await shRuby(`gem install bundler -v "${bundlerVersion}"`, { check: true })
     } else {
       // A system-owned gem dir needs root. Fail loud on a bad exit code: a
       // swallowed failure here comes back later as a confusing bundler error.
@@ -98,8 +136,8 @@ export async function runStep13(
       }
     }
     await shTool(reshim)
-    await shTool(`gem list -i -v "${bundlerVersion}" bundler`, { check: true })
-    await shTool('bundle --version', { cwd: backendCwd, check: true })
+    await shRuby(`gem list -i -v "${bundlerVersion}" bundler`, { check: true })
+    await shRuby('bundle --version', { check: true })
 
     // mysql2 gem with library flags (platform-aware)
     const buildFlags = await getLibBuildFlags((cmd) => shTool(cmd))
@@ -120,25 +158,26 @@ export async function runStep13(
     // Needed on all macOS (not just ARM) with MySQL 9.x which requires zstd.
     if (isDarwin() || isLinux()) {
       // `--global` writes to ~/.bundle/config, so the working directory does not
-      // change the outcome — but running it inside the repo makes bundler load
+      // change the outcome — but running it in backend/ makes bundler load
       // Gemfile.lock first, which turns any bundler mismatch into a failure here.
+      // The repo root avoids that (no Gemfile) while still resolving the repo's
+      // pinned Ruby; $HOME would hand this to whatever the global Ruby is.
       await shTool(
         `bundle config set --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
-        { cwd: HOME, check: true }
+        { cwd: REPO_PATH, check: true }
       )
     }
 
-    await shTool(
+    await shRuby(
       `gem install mysql2 -- --with-opt-dir="${buildFlags.optDir}" --with-ldflags="${buildFlags.ldflags}" --with-cppflags="${buildFlags.cppflags}"`,
-      { cwd: backendCwd, env: buildEnv, check: true }
+      { env: buildEnv, check: true }
     )
 
     // tmuxinator (terminal multiplexer session manager)
-    await shTool('gem install tmuxinator')
+    await shRuby('gem install tmuxinator')
     await shTool(reshim)
 
-    await shTool('bundle install', {
-      cwd: backendCwd,
+    await shRuby('bundle install', {
       interactive: true,
       env: buildEnv,
       check: true,
@@ -235,16 +274,17 @@ export async function runStep13(
     }
 
     // 6. DB restore or create
+    await assertRepoEnvLoaded(shApp)
+
     if (config.restoreDb) {
       onProgress(7, 'Restoring database from backup...')
-      await shTool(
+      await shApp(
         'bundle exec rails db:drop db:create db:seeds:restore db:migrate:with_data dev:enable_default_features db:test:prepare',
-        { cwd: backendCwd, interactive: true, check: true }
+        { interactive: true, check: true }
       )
     } else {
       onProgress(7, 'Creating database...')
-      await shTool('bundle exec rails db:create db:migrate db:test:prepare', {
-        cwd: backendCwd,
+      await shApp('bundle exec rails db:create db:migrate db:test:prepare', {
         interactive: true,
         check: true,
       })
@@ -257,15 +297,12 @@ export async function runStep13(
 
     // 7a. The mysql2 native extension actually loads (zstd/openssl linked OK),
     //     not just that `gem install` reported success.
-    await shTool(`bundle exec ruby -e "require 'mysql2'"`, { cwd: backendCwd, check: true })
+    await shApp(`bundle exec ruby -e "require 'mysql2'"`, { check: true })
 
     // 7b. The database is reachable AND has no pending migrations. This single
     //     rake task must connect to read schema_migrations, so it covers both
     //     "DB exists/reachable" and "schema is up to date" in one Rails boot.
-    await shTool('bundle exec rails db:abort_if_pending_migrations', {
-      cwd: backendCwd,
-      check: true,
-    })
+    await shApp('bundle exec rails db:abort_if_pending_migrations', { check: true })
 
     // 8. Done — no editor or browser opened; the finished pane shows next steps
 
