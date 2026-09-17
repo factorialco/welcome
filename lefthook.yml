@@ -10,3 +10,8 @@ pre-commit:
     - name: format
       glob: '*.{ts,tsx}'
       run: npx oxfmt --check {staged_files}
+
+    # Skips itself when shellcheck is absent: there is no CI to guarantee it.
+    - name: shellcheck
+      glob: '*.sh'
+      run: command -v shellcheck >/dev/null || exit 0; shellcheck {staged_files}
