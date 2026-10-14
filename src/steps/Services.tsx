@@ -179,7 +179,9 @@ export function ServicesStep() {
               Would you like to provision Cognito authentication?
             </Text>
             <Text dimColor>Sets up KMS, IAM, Lambda, and a Cognito User Pool.</Text>
-            <Text dimColor>Only needed for authentication feature work. Default: No</Text>
+            <Text dimColor>
+              Only the CIAM team needs this, and it requires personal AWS access. Default: No
+            </Text>
             <Box marginLeft={2}>
               <SelectInput items={NO_YES} onSelect={handleCognito} />
             </Box>
