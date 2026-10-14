@@ -29,8 +29,8 @@ export const STATIC_HOSTS = [
   'chat2db',
   'minio',
   'minio-console',
-  'it-management-common-service',
-  'it-management-marketplace-service',
+  'it-management-common',
+  'it-management-cell',
 ]
 export const WEBPAGE_COUNTRIES = [
   'es',
