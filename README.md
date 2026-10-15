@@ -39,8 +39,8 @@ npm start
 3. **Git identity** -- SSH key generation, GitHub SSO authorization
 4. **Clone repository** -- `factorialco/factorial` to `~/code/factorial`, git perf settings
 5. **Version manager** -- mise or asdf with Ruby, Node.js, Python, Rust, [Bazelisk](https://github.com/bazelbuild/bazelisk) (`bazel`/`bazelisk`), [adr-tools](https://github.com/npryce/adr-tools) (`adr`), and [Atlas](https://atlasgo.io/getting-started) (`atlas`)
-6. **AWS credentials** -- SSO login with `development` profile
-7. **Secrets** -- Retrieve env vars from AWS Secrets Manager
+6. **AWS credentials** -- SSO login with `development` profile (only when setting up Cognito)
+7. **Secrets** -- Run the monolith's `update-secrets.sh` (Azure Key Vault via `az login`)
 8. **Hosts file** -- 27 `*.local.factorial.dev` entries in `/etc/hosts`
 9. **Editor extensions** -- 23+ VS Code/Cursor extensions + custom `.vsix` packages
 10. **Ngrok tunnel** -- Domain and authtoken configuration
