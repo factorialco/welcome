@@ -25,7 +25,7 @@ type Phase =
   | 'error' // Something went wrong
 
 export function AWSSetupStep() {
-  const { updateConfig, goNext, goBack } = useWizard()
+  const { config, updateConfig, goNext, goBack } = useWizard()
 
   const [phase, setPhase] = useState<Phase>('checking')
   const [identity, setIdentity] = useState<string>('')
@@ -33,6 +33,11 @@ export function AWSSetupStep() {
   const [hasConfig, setHasConfig] = useState(false)
 
   useEffect(() => {
+    // Only the Cognito step needs AWS; everyone else gets secrets and images from Azure.
+    if (!config.setupCognito) {
+      goNext()
+      return
+    }
     // Run the initial session check once on mount. checkExistingSession is also
     // invoked directly from the retry handler, so it intentionally stays out of deps.
     checkExistingSession()

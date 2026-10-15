@@ -6,6 +6,7 @@ import {
   BRAND_COLOR,
   agenticCliLabel,
   editorChoiceLabel,
+  isTaskSkipped,
 } from '../context/index.js'
 import { StepContainer } from '../components/StepContainer.js'
 import { Field, Divider } from '../components/UI.js'
@@ -136,8 +137,7 @@ export function ReviewStep() {
         <Box gap={4} marginTop={0}>
           <Box flexDirection="column">
             {SETUP_TASKS.slice(0, 7).map((task) => {
-              const skipped =
-                (task.id === 10 && !config.setupNgrok) || (task.id === 11 && !config.setupCognito)
+              const skipped = isTaskSkipped(task.id, config)
               return (
                 <Text key={task.id} dimColor={skipped} strikethrough={skipped}>
                   <Text color={skipped ? 'gray' : 'green'}>{skipped ? '○' : '●'} </Text>
@@ -148,8 +148,7 @@ export function ReviewStep() {
           </Box>
           <Box flexDirection="column">
             {SETUP_TASKS.slice(7).map((task) => {
-              const skipped =
-                (task.id === 10 && !config.setupNgrok) || (task.id === 11 && !config.setupCognito)
+              const skipped = isTaskSkipped(task.id, config)
               return (
                 <Text key={task.id} dimColor={skipped} strikethrough={skipped}>
                   <Text color={skipped ? 'gray' : 'green'}>{skipped ? '○' : '●'} </Text>
