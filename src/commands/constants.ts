@@ -84,7 +84,6 @@ export const SKILL_REPOS = ['factorialco/factorial-skills']
 // Used by both the macOS Brewfile path and Linux package mapping
 export const BASE_BREW_FORMULAE = [
   'awscli',
-  'azure-cli',
   'bat',
   'direnv',
   'fzf',
@@ -112,6 +111,11 @@ export const BASE_BREW_FORMULAE = [
   'yq',
   'tmux',
 ]
+
+// Tools Homebrew only ships as casks (`brew "azure-cli"` no longer resolves).
+// The macOS Brewfile installs them with `cask`; on Linux they go through the
+// same package mapping as BASE_BREW_FORMULAE.
+export const BASE_BREW_CASKS = ['azure-cli']
 
 export const CLI_BREW_FORMULAE_MAP: Record<string, string> = {
   opencode: 'opencode',
