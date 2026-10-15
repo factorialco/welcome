@@ -102,9 +102,10 @@ export const SETUP_TASKS: SetupTask[] = [
   {
     id: 12,
     icon: '▸',
-    name: 'Conductor ECR login',
-    description: 'docker login to the Conductor ECR registry (before pulling the image)',
-    dependsOn: [2, 6],
+    name: 'Conductor registry login',
+    description:
+      'docker login to the Azure registry with the Conductor images (before pulling them)',
+    dependsOn: [1, 2],
   },
   {
     id: 13,

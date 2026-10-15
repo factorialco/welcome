@@ -12,7 +12,7 @@ export const REPO_PATH = path.join(CODE_DIR, REPO_NAME)
 export const LOCAL_DOMAIN = 'local.factorial.dev'
 export const LOCAL_AWS_PROFILE = 'development'
 export const LOCAL_AWS_DEFAULT_REGION = 'eu-central-1'
-export const CONDUCTOR_ECR_REGISTRY = '771567148620.dkr.ecr.eu-central-1.amazonaws.com'
+export const CONDUCTOR_ACR_NAME = 'factorial'
 export const BUNDLER_VERSION = '2.5.11'
 export const PNPM_VERSION = '11.5.2'
 export const PERSONAL_ENV_RC_PATH = path.join(REPO_PATH, '.envrc.personal')
@@ -84,6 +84,7 @@ export const SKILL_REPOS = ['factorialco/factorial-skills']
 // Used by both the macOS Brewfile path and Linux package mapping
 export const BASE_BREW_FORMULAE = [
   'awscli',
+  'azure-cli',
   'bat',
   'direnv',
   'fzf',
