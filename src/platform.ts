@@ -211,6 +211,7 @@ const APT_PACKAGE_MAP: Record<string, string | string[] | null> = {
   mise: null, // Installed via its own installer on Linux
   asdf: null, // Installed via git clone on Linux
   awscli: 'awscli',
+  'azure-cli': null, // Installed via Microsoft's script on Linux
   bat: 'bat',
   direnv: 'direnv',
   fzf: 'fzf',
@@ -250,6 +251,7 @@ const PACMAN_PACKAGE_MAP: Record<string, string | string[] | null> = {
   mise: null, // AUR: mise-bin
   asdf: null, // AUR: asdf-vm
   awscli: 'aws-cli-v2',
+  'azure-cli': 'azure-cli',
   bat: 'bat',
   direnv: 'direnv',
   fzf: 'fzf',
@@ -296,6 +298,7 @@ const AUR_PACKAGES: Record<string, string> = {
 
 /** Packages that need special installation on Linux (not in standard repos) */
 const SPECIAL_INSTALL_COMMANDS_APT: Record<string, string[]> = {
+  'azure-cli': ['curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'],
   gh: [
     'type -p curl >/dev/null || sudo apt-get install -y curl',
     'curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg',

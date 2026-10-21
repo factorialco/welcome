@@ -107,7 +107,7 @@ export function getSubtasks(taskId: number, config: SetupConfig): string[] {
         'Storing secrets in Secrets Manager...',
       ]
     case 12:
-      return ['Logging in to Conductor ECR registry...']
+      return ['Running .local-dev/scripts/login-conductor-registry.sh...']
     case 13:
       return [
         'yarn install / pnpm install...',
