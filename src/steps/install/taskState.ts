@@ -1,4 +1,9 @@
-import { SETUP_TASKS, editorChoiceLabel, type SetupConfig } from '../../context/index.js'
+import {
+  SETUP_TASKS,
+  editorChoiceLabel,
+  isTaskSkipped,
+  type SetupConfig,
+} from '../../context/index.js'
 
 export type TaskStatus = 'pending' | 'waiting' | 'running' | 'done' | 'skipped' | 'failed'
 
@@ -16,8 +21,7 @@ export type TaskState = {
 
 export function buildTaskStates(config: SetupConfig): TaskState[] {
   return SETUP_TASKS.map((task) => {
-    const skipped =
-      (task.id === 10 && !config.setupNgrok) || (task.id === 11 && !config.setupCognito)
+    const skipped = isTaskSkipped(task.id, config)
 
     const subtasks = getSubtasks(task.id, config)
 
@@ -75,7 +79,7 @@ export function getSubtasks(taskId: number, config: SetupConfig): string[] {
     case 6:
       return ['Copying AWS config...', 'Verifying AWS session...']
     case 7:
-      return ['Retrieving development/factorial/env...', 'Writing .envrc.localdev_secrets...']
+      return ['Running .local-dev/scripts/update-secrets.sh...']
     case 8:
       return [
         'Reading current /etc/hosts...',

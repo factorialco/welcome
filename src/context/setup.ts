@@ -69,7 +69,7 @@ export const SETUP_TASKS: SetupTask[] = [
     icon: '▸',
     name: 'Update secrets',
     description: 'Retrieve secrets from AWS Secrets Manager',
-    dependsOn: [6],
+    dependsOn: [1, 4],
   },
   {
     id: 8,
@@ -97,7 +97,7 @@ export const SETUP_TASKS: SetupTask[] = [
     icon: '▸',
     name: 'Setup Cognito authentication',
     description: 'KMS, IAM, Lambda, User Pool provisioning',
-    dependsOn: [4, 7, 10],
+    dependsOn: [4, 6, 7, 10],
   },
   {
     id: 12,
@@ -123,6 +123,13 @@ export const SETUP_TASKS: SetupTask[] = [
     dependsOn: [1],
   },
 ]
+
+/** Tasks the chosen config does not need. AWS is only needed for Cognito. */
+export function isTaskSkipped(taskId: number, config: SetupConfig): boolean {
+  if (taskId === 6 || taskId === 11) return !config.setupCognito
+  if (taskId === 10) return !config.setupNgrok
+  return false
+}
 
 // ── Wizard navigation steps (screens) ──────────────────
 export const WIZARD_STEPS = [
