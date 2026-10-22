@@ -11,7 +11,7 @@ import { runStep8 } from './08-hosts-file.js'
 import { runStep9 } from './09-editor-extensions.js'
 import { runStep10 } from './10-ngrok.js'
 import { runStep11 } from './11-cognito.js'
-import { runStep12 } from './12-conductor-ecr-login.js'
+import { runStep12 } from './12-conductor-registry-login.js'
 import { runStep13 } from './13-dev-environment.js'
 import { runStep14 } from './14-agent-skills.js'
 
