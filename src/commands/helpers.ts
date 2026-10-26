@@ -1,6 +1,6 @@
 import type { VersionManager } from '../context/types.js'
 import { getShellArgs, getToolPathPrefix, isDarwin } from '../platform.js'
-import { LOG_FILE } from './constants.js'
+import { KEY_VAULT_NO_ACCESS_HELP, LOG_FILE } from './constants.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { constants, createWriteStream } from 'node:fs'
 import { access, appendFile, readFile, writeFile } from 'node:fs/promises'
@@ -13,6 +13,13 @@ export function getErrorMessage(e: unknown): string {
 /** Escape a string for safe interpolation into a shell command */
 export function shellEscape(s: string): string {
   return "'" + s.replace(/'/g, "'\\''") + "'"
+}
+
+/** The no-access guidance when a script's output shows a Key Vault 403 and the
+ *  script did not already print it, otherwise an empty string. */
+export function keyVaultAccessHelp(output: string): string {
+  const forbidden = /\b403\b|Forbidden|not authorized/i.test(output)
+  return forbidden && !output.includes('not an engineer') ? `\n${KEY_VAULT_NO_ACCESS_HELP}` : ''
 }
 
 export type ProgressCallback = (subtaskIndex: number, detail: string) => void

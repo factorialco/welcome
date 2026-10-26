@@ -1,6 +1,12 @@
 import { type SetupConfig } from '../../context/index.js'
 import { LOG_FILE, REPO_PATH } from '../constants.js'
-import { getErrorMessage, sh, type ProgressCallback, type TaskResult } from '../helpers.js'
+import {
+  getErrorMessage,
+  keyVaultAccessHelp,
+  sh,
+  type ProgressCallback,
+  type TaskResult,
+} from '../helpers.js'
 
 /** Step 7: Update secrets with the monolith's own script, which reads them
  *  from Azure Key Vault (falling back to AWS Secrets Manager). */
@@ -16,10 +22,12 @@ export async function runStep7(
       interactive: true,
     })
     if (result.code !== 0) {
-      const tail = (result.stderr || result.stdout).split('\n').slice(-15).join('\n')
+      const output = result.stderr || result.stdout
+      const tail = output.split('\n').slice(-15).join('\n')
       throw new Error(
         `Failed to update secrets (exit ${result.code})` +
           `${tail ? `\n${tail}` : ''}` +
+          keyVaultAccessHelp(output) +
           `\nIf this does not explain it, post it in #local-development. Full output: ${LOG_FILE}`
       )
     }

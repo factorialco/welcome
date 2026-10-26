@@ -125,3 +125,14 @@ export const EDITOR_CASK_MAP: Record<string, string> = {
   cursor: 'cursor',
   vscode: 'visual-studio-code',
 }
+
+/** What to do when the account cannot read the dev Key Vault. The monolith's
+ *  scripts print the same guidance; this copy covers checkouts too old to have
+ *  it. The line for people outside engineering is provisional until DX and IT
+ *  agree on their access path. */
+export const KEY_VAULT_NO_ACCESS_HELP = [
+  'Your account cannot read the dev Key Vault kv-factorial-devenv.',
+  'If you are an engineer: request Azure access in YesHID (IT adds you to TEAM-Factorial Devs). Then run az logout, then az login --allow-no-subscriptions, and try again.',
+  'If you are not an engineer (design, product, support or others): do not request TEAM-Factorial Devs. Ask in #local-development and say you are not an engineer.',
+  'If you were given access recently: run az logout, then az login --allow-no-subscriptions, and try again.',
+].join('\n')
