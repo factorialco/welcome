@@ -1,6 +1,7 @@
 import type { VersionManager } from '../context/types.js'
 import { getShellArgs, getToolPathPrefix, isDarwin } from '../platform.js'
 import { LOG_FILE } from './constants.js'
+import { currentTaskLog } from './taskLog.js'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { constants, createWriteStream } from 'node:fs'
 import { access, appendFile, readFile, writeFile } from 'node:fs/promises'
@@ -66,6 +67,17 @@ export function runCommand(
     })
 
     const logStream = createWriteStream(LOG_FILE, { flags: 'a' })
+    const taskLog = currentTaskLog()
+    const taskLogStream = taskLog ? createWriteStream(taskLog, { flags: 'a' }) : undefined
+    taskLogStream?.on('error', () => {})
+    const write = (chunk: string) => {
+      logStream.write(chunk)
+      taskLogStream?.write(chunk)
+    }
+    const endLogs = () => {
+      logStream.end()
+      taskLogStream?.end()
+    }
 
     let stdout = ''
     let stderr = ''
@@ -73,17 +85,18 @@ export function runCommand(
     child.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString()
       stdout += chunk
-      logStream.write(chunk)
+      write(chunk)
     })
 
     child.stderr?.on('data', (data: Buffer) => {
       const chunk = data.toString()
       stderr += chunk
-      logStream.write(chunk)
+      write(chunk)
     })
 
     child.on('error', (err) => {
-      logStream.end()
+      write(`${err.message}\n`)
+      endLogs()
       // If spawn itself failed (e.g. command not found), resolve with error code
       resolve({
         code: 1,
@@ -92,7 +105,7 @@ export function runCommand(
       })
     })
     child.on('close', (code) => {
-      logStream.end()
+      endLogs()
       resolve({
         code: code ?? 1,
         stdout: stdout.trim(),

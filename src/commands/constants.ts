@@ -4,6 +4,8 @@ import path from 'node:path'
 export const HOME = homedir()
 export const ROOT_DIR = path.join(HOME, '.factorial')
 export const LOG_FILE = '/tmp/welcome.log'
+/** One log file per setup task — see taskLog.ts */
+export const TASK_LOG_DIR = '/tmp/welcome-logs'
 export const CODE_DIR = path.join(HOME, 'code')
 export const SSH_DIR = path.join(HOME, '.ssh')
 export const ORG_NAME = 'factorialco'
