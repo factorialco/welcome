@@ -7,6 +7,7 @@ import {
   getPlatform,
 } from '../../platform.js'
 import {
+  BASE_BREW_CASKS,
   BASE_BREW_FORMULAE,
   CLI_BREW_CASK_MAP,
   CLI_BREW_FORMULAE_MAP,
@@ -63,6 +64,7 @@ export async function runStep1(
           ...cliBrewLines,
           '',
           'cask_args appdir: "/Applications"',
+          ...BASE_BREW_CASKS.map((c) => `cask "${c}"`),
           ...editorCaskLines,
           ...cliCaskLines,
           'cask "font-fira-code-nerd-font"',
@@ -98,7 +100,7 @@ export async function runStep1(
     } else {
       // ── Linux: native package manager path ──
       // Add build prerequisites that macOS gets from Xcode Command Line Tools
-      const linuxFormulae = [...allFormulae, 'pkg-config', 'build-essential']
+      const linuxFormulae = [...allFormulae, ...BASE_BREW_CASKS, 'pkg-config', 'build-essential']
       onProgress(0, 'Building package install plan...')
       const plan = await buildPackageInstallPlan(linuxFormulae)
 
