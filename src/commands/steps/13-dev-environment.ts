@@ -1,7 +1,7 @@
 import { type SetupConfig } from '../../context/index.js'
 import type { VersionManager } from '../../context/types.js'
 import { getLibBuildFlags, isDarwin, isLinux } from '../../platform.js'
-import { BUNDLER_VERSION, HOME, PNPM_VERSION, REPO_PATH } from '../constants.js'
+import { BUNDLER_VERSION, PNPM_VERSION, REPO_PATH } from '../constants.js'
 import {
   getErrorMessage,
   makeShTool,
@@ -57,7 +57,13 @@ export async function runStep13(
   try {
     // Every command here needs the version manager's toolchain (ruby, node,
     // python) rather than whatever the login shell's PATH resolves to.
-    const shTool = makeShTool(config.versionManager)
+    // Default to the repo: asdf resolves versions from the working directory's
+    // .tool-versions and, unlike mise (`mise use -g`), step 5 sets no global
+    // ruby. Run from the wizard's own folder, `ruby` has no version at all and
+    // `npm` would be the wizard's node, not the repo's.
+    const baseShTool = makeShTool(config.versionManager)
+    const shTool: ShTool = (command, options) =>
+      baseShTool(command, { ...options, cwd: options?.cwd ?? REPO_PATH })
     const backendCwd = path.join(REPO_PATH, 'backend')
     const reshim = config.versionManager === 'mise' ? 'mise reshim || true' : 'asdf reshim || true'
 
@@ -120,11 +126,13 @@ export async function runStep13(
     // Needed on all macOS (not just ARM) with MySQL 9.x which requires zstd.
     if (isDarwin() || isLinux()) {
       // `--global` writes to ~/.bundle/config, so the working directory does not
-      // change the outcome — but running it inside the repo makes bundler load
-      // Gemfile.lock first, which turns any bundler mismatch into a failure here.
+      // change the outcome. Run it from the repo root: it has no Gemfile, so
+      // bundler does not load backend/Gemfile.lock (which would turn any bundler
+      // mismatch into a failure here), yet asdf still finds the repo's ruby in
+      // .tool-versions. From $HOME, asdf has no ruby version to run.
       await shTool(
         `bundle config set --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
-        { cwd: HOME, check: true }
+        { cwd: REPO_PATH, check: true }
       )
     }
 
@@ -234,16 +242,22 @@ export async function runStep13(
       throw new Error('MySQL did not become healthy in time.')
     }
 
+    // Rails reads DATABASE_HOST/PORT/PASSWORD and RAILS_ENV from the repo's
+    // .envrc files. The wizard's shell never loads them (direnv only hooks the
+    // interactive prompt), so without `direnv exec` Rails falls back to the
+    // /tmp/mysql.sock socket and a `factorial_` database name.
+    const rails = `direnv exec "${backendCwd}" bundle exec rails`
+
     // 6. DB restore or create
     if (config.restoreDb) {
       onProgress(7, 'Restoring database from backup...')
       await shTool(
-        'bundle exec rails db:drop db:create db:seeds:restore db:migrate:with_data dev:enable_default_features db:test:prepare',
+        `${rails} db:drop db:create db:seeds:restore db:migrate:with_data dev:enable_default_features db:test:prepare`,
         { cwd: backendCwd, interactive: true, check: true }
       )
     } else {
       onProgress(7, 'Creating database...')
-      await shTool('bundle exec rails db:create db:migrate db:test:prepare', {
+      await shTool(`${rails} db:create db:migrate db:test:prepare`, {
         cwd: backendCwd,
         interactive: true,
         check: true,
@@ -262,7 +276,7 @@ export async function runStep13(
     // 7b. The database is reachable AND has no pending migrations. This single
     //     rake task must connect to read schema_migrations, so it covers both
     //     "DB exists/reachable" and "schema is up to date" in one Rails boot.
-    await shTool('bundle exec rails db:abort_if_pending_migrations', {
+    await shTool(`${rails} db:abort_if_pending_migrations`, {
       cwd: backendCwd,
       check: true,
     })
