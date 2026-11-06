@@ -15,6 +15,8 @@ export type TaskState = {
   detail: string
   duration?: number
   error?: string
+  /** Per-task log file with the output of every command the task ran */
+  logFile?: string
   subtasks: string[]
   currentSubtask?: number
 }
@@ -140,11 +142,9 @@ export function canStart(taskId: number, tasks: TaskState[]): boolean {
   })
 }
 
-export function hasFailedDependency(taskId: number, tasks: TaskState[]): boolean {
+/** The dependencies of a task that failed, empty when none did. */
+export function failedDependencies(taskId: number, tasks: TaskState[]): TaskState[] {
   const task = SETUP_TASKS.find((t) => t.id === taskId)
-  if (!task) return false
-  return task.dependsOn.some((depId) => {
-    const dep = tasks.find((t) => t.id === depId)
-    return dep && dep.status === 'failed'
-  })
+  if (!task) return []
+  return tasks.filter((t) => task.dependsOn.includes(t.id) && t.status === 'failed')
 }
