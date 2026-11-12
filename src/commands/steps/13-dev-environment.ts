@@ -3,8 +3,10 @@ import type { VersionManager } from '../../context/types.js'
 import { getLibBuildFlags, isDarwin, isLinux } from '../../platform.js'
 import { BUNDLER_VERSION, PNPM_VERSION, REPO_PATH } from '../constants.js'
 import {
+  fileExists,
   getErrorMessage,
   makeShTool,
+  shellEscape,
   sudoSh,
   type ProgressCallback,
   type TaskResult,
@@ -57,10 +59,12 @@ export async function runStep13(
   try {
     // Every command here needs the version manager's toolchain (ruby, node,
     // python) rather than whatever the login shell's PATH resolves to.
-    // Default to the repo: asdf resolves versions from the working directory's
-    // .tool-versions and, unlike mise (`mise use -g`), step 5 sets no global
-    // ruby. Run from the wizard's own folder, `ruby` has no version at all and
-    // `npm` would be the wizard's node, not the repo's.
+    // Default to the repo: both managers pick versions from the working
+    // directory's .tool-versions, and outside the repo neither gives the repo's
+    // Ruby. With mise, the global is step 5's `ruby@latest`, not the pinned one,
+    // so a gem installed in the repo is missing when checked elsewhere. With
+    // asdf, step 5 sets no global ruby, so `ruby` has no version at all. The
+    // same applies to `npm` and the repo's Node.
     const baseShTool = makeShTool(config.versionManager)
     const shTool: ShTool = (command, options) =>
       baseShTool(command, { ...options, cwd: options?.cwd ?? REPO_PATH })
@@ -85,16 +89,37 @@ export async function runStep13(
     // 1. Install bundler + bundle install
     onProgress(2, 'Installing bundler and running bundle install...')
     const bundlerVersion = await resolveBundlerVersion(backendCwd)
-    const gemDirWritable = (await shTool('[ -w "$(gem env gemdir)" ]')).code === 0
+    // Same cwd as the install below, so this checks the gem dir of that Ruby.
+    const gemDirWritable =
+      (await shTool('[ -w "$(gem env gemdir)" ]', { cwd: backendCwd })).code === 0
     if (gemDirWritable) {
       await shTool(`gem install bundler -v "${bundlerVersion}"`, {
         cwd: backendCwd,
         check: true,
       })
     } else {
-      // A system-owned gem dir needs root. Fail loud on a bad exit code: a
-      // swallowed failure here comes back later as a confusing bundler error.
-      const sudoGem = await sudoSh(`gem install bundler -v '${bundlerVersion}'`)
+      // A system-owned gem dir needs root. Root's shell has no shims on PATH, so
+      // a bare `gem` would be macOS's /usr/bin/gem. Adding the shims would not
+      // help either: as root, $HOME and the mise/asdf config can differ, so the
+      // shim could pick another Ruby. Resolve the active Ruby's `gem` here and
+      // pass its absolute path to sudo.
+      const gemPath = (
+        await shTool(`ruby -e 'print File.join(RbConfig::CONFIG["bindir"], "gem")'`, {
+          cwd: backendCwd,
+        })
+      ).stdout.trim()
+      if (!gemPath || !(await fileExists(gemPath))) {
+        throw new Error(
+          `Could not find the gem command of the ${config.versionManager} Ruby` +
+            `${gemPath ? ` (looked for ${gemPath})` : ''}.`
+        )
+      }
+      // Fail loud on a bad exit code: a swallowed failure here comes back later
+      // as a confusing bundler error.
+      const sudoGem = await sudoSh(
+        `${shellEscape(gemPath)} install bundler -v ${shellEscape(bundlerVersion)}`,
+        { cwd: backendCwd }
+      )
       if (sudoGem.code !== 0) {
         const tail = (sudoGem.stderr || sudoGem.stdout).split('\n').slice(-15).join('\n')
         throw new Error(
@@ -104,7 +129,7 @@ export async function runStep13(
       }
     }
     await shTool(reshim)
-    await shTool(`gem list -i -v "${bundlerVersion}" bundler`, { check: true })
+    await shTool(`gem list -i -v "${bundlerVersion}" bundler`, { cwd: backendCwd, check: true })
     await shTool('bundle --version', { cwd: backendCwd, check: true })
 
     // mysql2 gem with library flags (platform-aware)
@@ -128,8 +153,9 @@ export async function runStep13(
       // `--global` writes to ~/.bundle/config, so the working directory does not
       // change the outcome. Run it from the repo root: it has no Gemfile, so
       // bundler does not load backend/Gemfile.lock (which would turn any bundler
-      // mismatch into a failure here), yet asdf still finds the repo's ruby in
-      // .tool-versions. From $HOME, asdf has no ruby version to run.
+      // mismatch into a failure here), yet the version manager still picks the
+      // repo's ruby from .tool-versions. From $HOME, mise would run its global
+      // `ruby@latest` and asdf would have no ruby version to run.
       await shTool(
         `bundle config set --global build.mysql2 "--with-opt-dir=${buildFlags.optDir} --with-ldflags=${buildFlags.ldflags} --with-cppflags=${buildFlags.cppflags}"`,
         { cwd: REPO_PATH, check: true }
