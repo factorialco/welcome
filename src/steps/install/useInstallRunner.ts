@@ -2,11 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useWizard, clearSavedConfig } from '../../context/index.js'
 import {
   TASK_RUNNERS,
+  appendTaskLog,
+  getErrorMessage,
+  runWithTaskLog,
+  taskLogPath,
   warmupSudo,
   type ProgressCallback,
   type TaskResult,
 } from '../../commands/index.js'
-import { buildTaskStates, canStart, hasFailedDependency, type TaskState } from './taskState.js'
+import { buildTaskStates, canStart, failedDependencies, type TaskState } from './taskState.js'
 
 export type InstallRunner = {
   tasks: TaskState[]
@@ -73,14 +77,16 @@ export function useInstallRunner(): InstallRunner {
       startedRef.current.add(task.id)
 
       // If a dependency failed, cascade the failure instead of running the task
-      if (hasFailedDependency(task.id, tasks)) {
+      const failedDeps = failedDependencies(task.id, tasks)
+      if (failedDeps.length > 0) {
         setTasks((prev) =>
           prev.map((t) =>
             t.id === task.id
               ? {
                   ...t,
                   status: 'failed',
-                  error: 'Dependency failed',
+                  error: `Not run: depends on ${failedDeps.map((d) => `"${d.name}"`).join(', ')}, which failed`,
+                  logFile: undefined,
                   currentSubtask: undefined,
                 }
               : t
@@ -90,8 +96,11 @@ export function useInstallRunner(): InstallRunner {
       }
 
       // Mark as running
+      const logFile = taskLogPath(task.id, task.name)
       setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: 'running', currentSubtask: 0 } : t))
+        prev.map((t) =>
+          t.id === task.id ? { ...t, status: 'running', currentSubtask: 0, logFile } : t
+        )
       )
 
       // Get the real task runner
@@ -105,22 +114,32 @@ export function useInstallRunner(): InstallRunner {
         )
       }
 
-      // Run the task asynchronously
-      runner(config, onProgress).then((result: TaskResult) => {
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === task.id
-              ? {
-                  ...t,
-                  status: result.success ? 'done' : 'failed',
-                  duration: result.duration,
-                  error: result.error,
-                  currentSubtask: undefined,
-                }
-              : t
-          )
+      // Run the task asynchronously, with its commands' output in its own log file
+      runWithTaskLog(logFile, () => runner(config, onProgress))
+        .catch(
+          (e: unknown): TaskResult => ({ success: false, error: getErrorMessage(e), duration: 0 })
         )
-      })
+        .then((result: TaskResult) => {
+          if (!result.success)
+            appendTaskLog(
+              logFile,
+              // '# ' lines are kept out of the on-screen tail, which shows the error separately
+              `\n# ✗ Task failed:\n${(result.error || 'Unknown error').replace(/^/gm, '# ')}`
+            )
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? {
+                    ...t,
+                    status: result.success ? 'done' : 'failed',
+                    duration: result.duration,
+                    error: result.error,
+                    currentSubtask: undefined,
+                  }
+                : t
+            )
+          )
+        })
     }
   }, [tasks, finished, sudoReady, config, startTime])
 

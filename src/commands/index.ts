@@ -2,6 +2,7 @@
 // The original monolithic commands.ts was split into focused files:
 //   constants.ts  — shared paths / config constants and package lists
 //   helpers.ts    — shell execution and filesystem helpers
+//   taskLog.ts    — per-task log files shown on the completion screen
 //   homebrew.ts   — Homebrew bootstrap + sudo warm-up
 //   steps/        — one file per setup step (runStep1…14) + TASK_RUNNERS
 //   ssh.ts        — SSH key setup helpers (SSHSetup wizard step)
@@ -9,6 +10,7 @@
 //   preflight.ts  — pre-flight environment checks
 //   onboarding.ts — post-setup factorial-teach onboarding launch
 export * from './helpers.js'
+export * from './taskLog.js'
 export * from './constants.js'
 export * from './homebrew.js'
 export * from './ssh.js'
